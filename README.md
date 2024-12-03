@@ -46,3 +46,6 @@
 # TODO:
 - add dehashed support
 - add subdomain/vhost bruteforcing
+- add ASN  to find IP ranges
+- add IP search support via VirusTotal, AlienVault, etc.
+- add certificate brute on identified IPs using CloudRecon.
