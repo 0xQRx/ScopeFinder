@@ -43,3 +43,6 @@
 - **URLs**: Discovered URLs from `waymore`.
 - **HTTP Analysis**: HTTP probing results and screenshots.
 
+# TODO:
+- add dehashed support
+- add subdomain/vhost bruteforcing
