@@ -46,6 +46,7 @@
 # TODO:
 - add dehashed support
 - add subdomain/vhost bruteforcing
-- add ASN  to find IP ranges
-- add IP search support via VirusTotal, AlienVault, etc.
-- add certificate brute on identified IPs using CloudRecon.
+- add ASN to find IP ranges (outside of domain search - separate folder(?))
+- add IP search support via VirusTotal, AlienVault, etc. (outside of domain search - separate folder(?))
+- add certificate brute on identified IPs using CloudRecon. (outside of domain search - separate folder(?))
+- add smap support to get ports open on the targets. (outside of domain search - separate folder(?))
