@@ -1,9 +1,64 @@
 #!/bin/bash
 
-# Ensure the script is run with at least one domain or file containing domains
+# Help function to display usage
+usage() {
+    echo "Usage: sudo $0 [domain]"
+    echo
+    echo "This script automates the enumeration and analysis of a domain."
+    echo "It performs tasks like subdomain enumeration, email and credential searches,"
+    echo "URL finding, port scanning, and active enumeration with banner grabbing and screenshots."
+    echo
+    echo "Prerequisites:"
+    echo "  Ensure the following environment variables are set before running:"
+    echo "    - SHODAN_API_KEY      : Your Shodan API key."
+    echo "    - DEHASHED_EMAIL      : Your DeHashed account email."
+    echo "    - DEHASHED_API_KEY    : Your DeHashed API key."
+    echo "    - HUNTERIO_API_KEY    : Your Hunter.io API key."
+    echo
+    echo "Options:"
+    echo "  -h, --help             Display this help menu and exit."
+    echo
+    echo "Example:"
+    echo "  sudo $0 example.com"
+    echo
+    echo "Features:"
+    echo "  - Checks for required tools and installs them if missing."
+    echo "  - Enumerates subdomains using multiple tools and sources."
+    echo "  - Searches for associated emails using Hunter.io."
+    echo "  - Finds leaked credentials for the domain using DeHashed."
+    echo "  - Extracts unique emails and credential pairs."
+    echo "  - Finds URLs passively using Waymore."
+    echo "  - Performs port scanning with Smap."
+    echo "  - Conducts active enumeration with Httpx."
+    echo
+    echo "Output:"
+    echo "  Results are saved in a folder named after the domain:"
+    echo "    - subdomains.txt            : Enumerated subdomains."
+    echo "    - wildcard_subdomains.txt   : Wildcard subdomains."
+    echo "    - emails.txt                : Extracted emails."
+    echo "    - leaked_credential_pairs.txt : Emails with their associated leaked credentials."
+    echo "    - waymore_URLS.txt          : URLs discovered by Waymore."
+    echo "    - open_ports.txt                : Ports discovered by Smap."
+    echo "    - httpx_output.txt          : httpx execution log."
+    echo "    - output(folder with httpx results)          : Banner grabbing and screenshot details."
+    echo
+    echo "Dependencies:"
+    echo "  This script requires the following tools to be installed:"
+    echo "    - jq, subfinder, waymore, httpx, smap, crtsh-tool, shosubgo."
+    echo "  The script will attempt to install missing dependencies automatically."
+    echo
+    exit 0
+}
+
+# Check for help flag
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    usage
+fi
+
+# Ensure the script is run with at least one domain
 if [ "$#" -eq 0 ]; then
-    echo "Usage: $0 domain"
-    exit 1
+    echo "Error: No domain provided."
+    usage
 fi
 
 # Function to check if a variable is set and not empty
@@ -158,7 +213,7 @@ sort -u "waymore_URLS.txt" -o "waymore_URLS.txt"
 
 # Port scanning with smap
 echo "Running Port scanning with smap..."
-smap -iL subdomains.txt -oS open_ports
+smap -iL subdomains.txt -oS open_ports.txt
 
 # Active: Banner Grabbing / Screenshots
 echo "Running banner grabbing and taking screenshots with httpx..."
