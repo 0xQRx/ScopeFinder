@@ -17,6 +17,8 @@
 3. **API Keys**: Set the required API keys in the corresponding configuration files:
    - Shodan, Dehashed, Hunter.io API keys must be set in `~/.zshrc` or `~/.bashrc`.
    - Other tools (e.g., `waymore`, `subfinder`) need API keys configured in their specific files for full functionality.
+
+# IMPORTANT
 4. **First Run Notice**: kali comes with `httpx` however, that version is not what this script use, you would need to remove standard utility before you can use this script. `httpx` will download the Chromium browser on its first run. A machine reboot may be required to ensure it functions correctly.
 
 ## Usage
