@@ -212,17 +212,17 @@ echo "Running STAGE 1. Once it's done, you can start working with the results in
 
 # Passive: Subdomain enumeration
 echo "Running Subdomain enumeration with subfinder..."
-#subfinder -d "$DOMAIN" -all -silent >> "subdomains.txt"
+subfinder -d "$DOMAIN" -all -silent >> "subdomains.txt"
 
 echo "Running Subdomain enumeration with crtsh-tool..."
-#crtsh-tool --domain "$DOMAIN" | grep -v '\*.' >> "subdomains.txt"
-#crtsh-tool --domain "$DOMAIN" | grep '\*.' >> "wildcard_subdomains.txt"
+crtsh-tool --domain "$DOMAIN" | grep -v '\*.' >> "subdomains.txt"
+crtsh-tool --domain "$DOMAIN" | grep '\*.' >> "wildcard_subdomains.txt"
 
 echo "Running Subdomain enumeration with shosubgo..."
-# shosubgo -d "$DOMAIN" -s "$SHODAN_API_KEY" | grep -v 'No subdomains found' | grep -v 'apishodan.JsonSubDomain' | {
-#    grep -v '\*.' >> "subdomains.txt"
-#    grep '\*.' >> "wildcard_subdomains.txt"
-# }
+shosubgo -d "$DOMAIN" -s "$SHODAN_API_KEY" | grep -v 'No subdomains found' | grep -v 'apishodan.JsonSubDomain' | {
+   grep -v '\*.' >> "subdomains.txt"
+   grep '\*.' >> "wildcard_subdomains.txt"
+}
 
 # Sorting and deduplicating subdomains
 echo "Sorting and deduplicating subdomains..."
@@ -232,16 +232,16 @@ sort -u "wildcard_subdomains.txt" -o "wildcard_subdomains.txt"
 echo "Subdomain enumeration completed for $DOMAIN."
 
 echo "Searching for emails on hunter.io"
-#curl -s "https://api.hunter.io/v2/domain-search?domain=${DOMAIN}&api_key=${HUNTERIO_API_KEY}" | jq -r '.data.emails[].value' >> "emails.txt"
+curl -s "https://api.hunter.io/v2/domain-search?domain=${DOMAIN}&api_key=${HUNTERIO_API_KEY}" | jq -r '.data.emails[].value' >> "emails.txt"
 
 echo "Searching for leaked credentials on DeHashed"
-#curl -s "https://api.dehashed.com/search?query=${DOMAIN}" -u $DEHASHED_EMAIL:$DEHASHED_API_KEY -H 'Accept: application/json' >> dehashed_raw.json
+curl -s "https://api.dehashed.com/search?query=${DOMAIN}" -u $DEHASHED_EMAIL:$DEHASHED_API_KEY -H 'Accept: application/json' >> dehashed_raw.json
 
 # Extract Emails
-#jq -r '.entries[] | select(.email != null and .email != "") | .email' dehashed_raw.json >> "emails.txt" 2>/dev/null
+jq -r '.entries[] | select(.email != null and .email != "") | .email' dehashed_raw.json >> "emails.txt" 2>/dev/null
 
 # Extract credential pairs
-#jq -r 'reduce .entries[] as $item ({}; if $item.email != null and $item.email != "" and $item.password != null and $item.password != "" then .[$item.email] += [$item.password] else . end) | to_entries | map(.value |= unique) | .[] | "\(.key): \(.value[])"' dehashed_raw.json >> leaked_credential_pairs.txt 2>/dev/null
+jq -r 'reduce .entries[] as $item ({}; if $item.email != null and $item.email != "" and $item.password != null and $item.password != "" then .[$item.email] += [$item.password] else . end) | to_entries | map(.value |= unique) | .[] | "\(.key): \(.value[])"' dehashed_raw.json >> leaked_credential_pairs.txt 2>/dev/null
 
 # Sorting and deduplicating emails
 echo "Sorting and deduplicating emails..."
@@ -252,17 +252,17 @@ echo "Finished email and credential search..."
 
 # Passive: URL finder
 echo "Running URL finder with waymore - might take a while..."
-#waymore -i "$DOMAIN" -mode U -oU "waymore_URLS.txt" > /dev/null 2>&1
+waymore -i "$DOMAIN" -mode U -oU "waymore_URLS.txt" > /dev/null 2>&1
 sort -u "waymore_URLS.txt" -o "waymore_URLS.txt"
 
 # Port scanning with smap
 echo "Running Port scanning with smap..."
 mkdir smap_results
-#smap -iL subdomains.txt -oA smap_results/open_ports
+smap -iL subdomains.txt -oA smap_results/open_ports
 
 # Active: Banner Grabbing / Screenshots
 echo "Running banner grabbing and taking screenshots for subdomains with httpx..."
-#httpx -status-code -title -tech-detect -list "subdomains.txt" -ss -o "httpx_output.txt" -no-color > /dev/null 2>&1
+httpx -status-code -title -tech-detect -list "subdomains.txt" -ss -o "httpx_output.txt" -no-color > /dev/null 2>&1
 
 echo "STAGE 1 is finished. You can start working with the results in ${STAGE1} directory."
 
@@ -277,7 +277,7 @@ BASE_NAME=$(echo "$DOMAIN" | awk -F'.' '{print $(NF-1)}')
 
 # Run asnmap to obtain ASN ranges if there is any.
 echo "Running ASN search with asnmap..."
-#asnmap -d $BASE_NAME -silent >> asn_ip_ranges.txt
+asnmap -d $BASE_NAME -silent >> asn_ip_ranges.txt
 
 if [ ! -s asn_ip_ranges.txt ]; then
   echo "No ASN ranges found. STAGE 2 abort."
@@ -287,12 +287,12 @@ fi
 # Port scanning with smap
 echo "Running Port scanning with smap..."
 mkdir smap_results
-#smap -iL asn_ip_ranges.txt -oA smap_results/open_ports
+smap -iL asn_ip_ranges.txt -oA smap_results/open_ports
 grep -E "443|80" smap_results/open_ports.gnmap | awk '/Host:/ {if ($3 ~ /\(/) {print $2, $3} else {print $2, "(No domain)"}}' | sed 's/[()]//g' >> webservers_ip_domain.txt
 
 # Running CloudRecon to obtain SSL Ceritficate information.
 echo "Scraping SSL Certificate Data using CloudRecon..."
-#CloudRecon scrape -i asn_ip_ranges.txt -j >> CloudRecon_raw.json
+CloudRecon scrape -i asn_ip_ranges.txt -j >> CloudRecon_raw.json
 
 ############# START OF DATA PROCESSING FOR CLOUDRECON #############
 
