@@ -108,5 +108,70 @@ Results are saved in domain-specific folders:
   - Kali Linux ships with a default `httpx` version. This script requires the GO version, which may require removal of the preinstalled version.
   - The first run of `httpx` will download Chromium; a reboot may be necessary for full functionality.
 
-## TODO
+---
+
+# Docker Setup Instructions
+
+## Prerequisites
+- Install Docker on your system.
+  ```
+  sudo apt update && sudo apt install -y docker.io && sudo systemctl enable docker --now && sudo usermod -aG docker $USER
+  ```
+- Ensure the following environment variables are set:
+  - `SHODAN_API_KEY`: Your Shodan API key (paid).
+  - `DEHASHED_EMAIL`: Your DeHashed account email (paid).
+  - `DEHASHED_API_KEY`: Your DeHashed API key (paid).
+  - `HUNTERIO_API_KEY`: Your Hunter.io API key (free).
+  - `PDCP_API_KEY`: Your ProjectDiscovery API key (free).
+- Ensure that golang in Dockerfile matches your arch. Default `amd64`.
+
+## Config Files on Host Machine
+Some tools require specific configuration files for additional API keys:
+- **Waymore**: `~/.config/waymore/config.yml`
+  ```yaml
+  URLSCAN_API_KEY: your_urlscan_api_key
+  VIRUSTOTAL_API_KEY: your_virustotal_api_key
+  ```
+- **Subfinder**: `~/.config/subfinder/provider-config.yaml`
+  ```yaml
+  resolvers:
+    - 8.8.8.8
+    - 1.1.1.1
+  providers:
+    shodan:
+      - your_shodan_api_key
+  ```
+
+## Build the Docker Image
+Run the following command to build the Docker image:
+```bash
+docker build -t scopefinder .
+```
+
+## Create an Alias
+Add the following alias to your shell configuration file (e.g., `~/.bashrc` or `~/.zshrc`):
+```bash
+alias ScopeFinder='docker run --rm -it \
+  -e SHODAN_API_KEY="${SHODAN_API_KEY}" \
+  -e DEHASHED_EMAIL="${DEHASHED_EMAIL}" \
+  -e DEHASHED_API_KEY="${DEHASHED_API_KEY}" \
+  -e HUNTERIO_API_KEY="${HUNTERIO_API_KEY}" \
+  -e PDCP_API_KEY="${PDCP_API_KEY}" \
+  -e PATH="/usr/local/go/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin:/go/bin" \
+  -v "$HOME/.config/waymore:/root/.config/waymore" \
+  -v "$HOME/.config/subfinder:/root/.config/subfinder" \
+  -v "$(pwd):/output" \
+  scopefinder'
+```
+
+## Usage
+Reload your shell configuration:
+```bash
+source ~/.bashrc
+```
+Run the tool with the alias:
+```bash
+ScopeFinder example.com
+```
+All results will be saved in the current working directory.
 

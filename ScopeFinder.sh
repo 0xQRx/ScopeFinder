@@ -247,7 +247,7 @@ grep -E "443|80" smap_results/open_ports.gnmap | awk '/Host:/ {if ($3 ~ /\(/) {p
 
 # Active: Banner Grabbing / Screenshots
 echo "Running banner grabbing and taking screenshots for subdomains with httpx..."
-httpx -status-code -title -tech-detect -list "subdomains.txt" -ss -o "httpx_output.txt" -no-color > /dev/null 2>&1
+httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "httpx_output.txt" -no-color > /dev/null 2>&1
 
 echo "STAGE 1 is finished. You can start working with the results in ${STAGE1} directory."
 
@@ -336,7 +336,7 @@ for dir in */; do
 
         # Run httpx against subdomains.txt
         echo "Running httpx in directory: $dir"
-        httpx -status-code -title -tech-detect -list "subdomains.txt" -ss -o "httpx_output.txt" -no-color > /dev/null 2>&1
+        httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "httpx_output.txt" -no-color > /dev/null 2>&1
 
         # Return to the parent directory
         cd ..
