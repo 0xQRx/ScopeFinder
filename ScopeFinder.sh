@@ -167,6 +167,12 @@ check_config_warnings() {
     echo "  2. ~/.config/subfinder/provider-config.yaml"
     echo "     - Populate with the necessary API keys for supported providers."
     echo "Refer to the respective tool documentation for configuration details."
+    echo 
+    echo "============================================================"
+    echo "           The tool will start in 10 seconds.               "
+    echo "       If you wish to exit, press Ctrl + C now.            "
+    echo "============================================================"
+    sleep 10
 }
 
 check_config_warnings
