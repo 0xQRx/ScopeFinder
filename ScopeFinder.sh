@@ -142,7 +142,7 @@ check_and_install_tools() {
     # waymore
     if ! command_exists waymore; then
         echo "Installing waymore..."
-        pipx install git+https://github.com/xnl-h4ck3r/waymore.git -v > /dev/null
+        pipx install git+https://github.com/xnl-h4ck3r/waymore.git > /dev/null
     fi
 
     # httpx
