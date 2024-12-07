@@ -158,6 +158,18 @@ check_and_install_tools() {
 ensure_prerequisites
 check_and_install_tools
 
+check_config_warnings() {
+    echo "WARNING: For optimal performance, ensure the following configuration files are created and properly populated:"
+    echo "  1. ~/.config/waymore/config.yml"
+    echo "     - Keys to include:"
+    echo "       - URLSCAN_API_KEY: your_urlscan_api_key"
+    echo "       - VIRUSTOTAL_API_KEY: your_virustotal_api_key"
+    echo "  2. ~/.config/subfinder/provider-config.yaml"
+    echo "     - Populate with the necessary API keys for supported providers."
+    echo "Refer to the respective tool documentation for configuration details."
+}
+
+check_config_warnings
 
 # Handle input (single domain)
 DOMAIN="$1"
