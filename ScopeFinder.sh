@@ -150,6 +150,8 @@ check_and_install_tools() {
     install_tool "subbrute" "go install github.com/0xQRx/subbrute/cmd/subbrute@latest > /dev/null"
     install_tool "CloudRecon" "go install github.com/g0ldencybersec/CloudRecon@latest > /dev/null"
     install_tool "asnmap" "go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest > /dev/null"
+    install_tool "katana" "CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest > /dev/null"
+    install_tool "jshunter" "go install -v github.com/cc1a2b/jshunter@latest > /dev/null"
 
     echo "All tools checked."
 }
@@ -239,7 +241,20 @@ echo "Running URL finder with waymore - might take a while..."
 waymore -i "$DOMAIN" -mode U -oU "waymore_URLS.txt" > /dev/null 2>&1
 sort -u "waymore_URLS.txt" -o "waymore_URLS.txt"
 
-# Port scanning with smap
+####### START TODO ########
+
+# Active: Crawling using katana
+
+# katana -list subdomain.txt -headless -no-sandbox -jc -d 3 -c 3 -p 3 -rd 1 -rl 5 -rlm 60 -headless -no-sandbox -o katana_crawled_URLS.txt -silent
+
+# Passive: searching for sensitive information in JS files with jshunter 
+# jshunter -u http://blog.x.com/b/csi.js
+
+# Sort URLs, separate with and without parameters
+
+####### END TODO ########
+
+# Passive: Port scanning with smap
 echo "Running Port scanning with smap..."
 mkdir smap_results
 smap -iL subdomains.txt -oA smap_results/open_ports
