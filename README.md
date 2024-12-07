@@ -1,54 +1,112 @@
+
 # ScopeFinder
 
 **ScopeFinder** is a comprehensive tool for automated domain enumeration and analysis. It installs necessary tools, performs passive and active scans, and organizes results into structured output files.
 
 ## Features
 
-- **Automated Installation**: Installs all required tools if not already present:
-  - `subfinder`, `waymore`, `httpx`, `smap`, `crtsh-tool`, `shosubgo`.
-- **Passive Analysis**: Subdomain enumeration, URL, emails and leaked credential discovery .
-- **Active Analysis**: HTTP probing, banner grabbing, technology detection, and screenshots.
-- **Output Management**: Organized and deduplicated results stored in domain-specific directories.
+- **Automated Installation**:
+  - Installs all required tools if not already present: `subfinder`, `waymore`, `httpx`, `smap`, `crtsh-tool`, `shosubgo`, `subbrute`, `CloudRecon`, and `asnmap`.
+  - Ensures required dependencies like `jq`, `pipx`, and `gcc` are installed.
+- **Passive Analysis**:
+  - Subdomain enumeration using multiple sources and tools.
+  - URL discovery with `waymore`.
+  - Email and leaked credential searches using Hunter.io and DeHashed APIs.
+- **Active Analysis**:
+  - HTTP probing, banner grabbing, technology detection, and screenshots.
+  - Port scanning with `smap`.
+  - ASN range analysis and IP scanning.
+  - SSL certificate data extraction and subdomain classification.
+- **Output Management**:
+  - Organized and deduplicated results stored in domain-specific directories.
+  - Stage-based analysis with `STAGE_1` for domain-focused tasks and `STAGE_2` for ASN and IP-centric scans.
 
 ## Requirements
 
-1. **Golang**: Install from [https://go.dev/](https://go.dev/).
-2. **Pipx**: Install from [pipx documentation](https://pypa.github.io/pipx/).
-3. **API Keys**: Set the required API keys in the corresponding configuration files:
-   - Shodan, Dehashed, Hunter.io API keys must be set in `~/.zshrc` or `~/.bashrc`.
-   - Other tools (e.g., `waymore`, `subfinder`) need API keys configured in their specific files for full functionality.
-
-# IMPORTANT
-4. **First Run Notice**: kali comes with `httpx` however, that version is not what this script use, you would need to remove standard utility before you can use this script. `httpx` will download the Chromium browser on its first run. A machine reboot may be required to ensure it functions correctly.
+1. **Golang**:
+   - Install from [https://go.dev/](https://go.dev/).
+   - Ensure `GOBIN` is in your `PATH`:
+     ```bash
+     export PATH=$PATH:$HOME/go/bin
+     ```
+2. **Pipx**:
+   - Install from [pipx documentation](https://pypa.github.io/pipx/):
+     ```bash
+     python3 -m pip install --user pipx
+     python3 -m pipx ensurepath
+     ```
+3. **API Keys**:
+   - Set the required API keys as environment variables in your shell configuration file (e.g., `~/.zshrc`, `~/.bashrc`):
+     ```bash
+     export SHODAN_API_KEY=your_shodan_api_key
+     export DEHASHED_EMAIL=your_dehashed_email
+     export DEHASHED_API_KEY=your_dehashed_api_key
+     export HUNTERIO_API_KEY=your_hunterio_api_key
+     export PDCP_API_KEY=your_projectdiscovery_api_key
+     ```
+4. **Dependencies**:
+   - Ensure all tools (`jq`, `subfinder`, `waymore`, etc.) are installed. The script attempts automatic installation if they are missing.
 
 ## Usage
 
 1. Clone or download ScopeFinder.
-2. Set your API Keys in `~/.zshrc` or `~/.bashrc`:
-   ```bash
-   export SHODAN_API_KEY=your_api_key
-   export DEHASHED_EMAIL=your_email
-   export DEHASHED_API_KEY=your_api_key
-   export HUNTERIO_API_KEY=your_api_key
-   ```
-3. Ensure other tools' API keys are configured.
-4. Run the script with:
+2. Set your API keys as described above.
+3. Run the script with:
    ```bash
    sudo ./ScopeFinder.sh domain
    ```
-5. Check output in the generated directory named after the target domain.
+4. Review output in the generated domain directory (`STAGE_1` for passive and domain-based analysis, `STAGE_2` for ASN/IP-focused scans).
+
+### Options
+
+- **Help Menu**: Run with `-h` or `--help` to display usage and feature details:
+
+  ```
+  Usage: sudo ./ScopeFinder.sh [domain]
+
+  This script automates the enumeration and analysis of a domain. It performs tasks like subdomain enumeration, email and credential searches, URL finding, port scanning, and active enumeration with banner grabbing and screenshots.
+
+  Prerequisites:
+    Ensure the following environment variables are set before running:
+      - SHODAN_API_KEY      : Your Shodan API key. (paid)
+      - DEHASHED_EMAIL      : Your DeHashed account email. (paid)
+      - DEHASHED_API_KEY    : Your DeHashed API key. (paid)
+      - HUNTERIO_API_KEY    : Your Hunter.io API key. (free)
+      - PDCP_API_KEY        : Your ProjectDiscovery API key. (free)
+
+  Options:
+    -h, --help             Display this help menu and exit.
+
+  Example:
+    sudo ./ScopeFinder.sh example.com
+  ```
 
 ## Output
 
-- **Subdomains**: Discovered subdomains in `subdomains.txt`.
-- **Wildcard Subdomains**: Wildcard subdomains in `wildcard_subdomains.txt`.
-- **URLs**: Discovered URLs from `waymore`.
-- **HTTP Analysis**: HTTP probing results and screenshots.
+Results are saved in domain-specific folders:
 
-# TODO:
-- add crosslinked support (pass company name as a second argument)
-- add subdomain/vhost bruteforcing
-- add ASN to find IP ranges (outside of domain search - separate folder(?))
-- add IP search support via VirusTotal, AlienVault, etc. (outside of domain search - separate folder(?))
-- add certificate brute on identified IPs using CloudRecon. (outside of domain search - separate folder(?))
-- add smap support to get ports open on the targets. (outside of domain search - separate folder(?))
+- **`STAGE_1`**: Domain-focused passive and active analysis:
+  - `subdomains.txt`: Enumerated subdomains.
+  - `wildcard_subdomains.txt`: Wildcard subdomains.
+  - `emails.txt`: Extracted emails.
+  - `leaked_credential_pairs.txt`: Emails with leaked credentials.
+  - `waymore_URLS.txt`: URLs discovered by Waymore.
+  - `open_ports.txt`: Ports discovered by Smap.
+  - `httpx_output.txt`: HTTPX execution log.
+  - `output/`: Folder containing HTTPX results (banner grabbing and screenshots).
+
+- **`STAGE_2`**: ASN and IP-focused analysis:
+  - `asn_ip_ranges.txt`: ASN-derived IP ranges.
+  - `webservers_ip_domain.txt`: Identified webservers (IP and domain pairs).
+  - `CloudRecon_raw.json`: SSL certificate data.
+  - `top_level_domains.txt`: Extracted top-level domains.
+  - Subdomain classifications by TLD with wildcard and non-wildcard entries.
+
+## IMPORTANT
+
+- **HTTPX Issue**:
+  - Kali Linux ships with a default `httpx` version. This script requires the GO version, which may require removal of the preinstalled version.
+  - The first run of `httpx` will download Chromium; a reboot may be necessary for full functionality.
+
+## TODO
+
