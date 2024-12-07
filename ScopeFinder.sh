@@ -259,6 +259,7 @@ sort -u "waymore_URLS.txt" -o "waymore_URLS.txt"
 echo "Running Port scanning with smap..."
 mkdir smap_results
 smap -iL subdomains.txt -oA smap_results/open_ports
+grep -E "443|80" smap_results/open_ports.gnmap | awk '/Host:/ {if ($3 ~ /\(/) {print $2, $3} else {print $2, "(No domain)"}}' | sed 's/[()]//g' >> webservers_ip_domain.txt
 
 # Active: Banner Grabbing / Screenshots
 echo "Running banner grabbing and taking screenshots for subdomains with httpx..."
