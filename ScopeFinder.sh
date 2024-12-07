@@ -107,8 +107,8 @@ fi
 # Ensure pipx is installed
 if ! command_exists pipx; then
     echo "Pipx is not installed. Installing pipx..."
-    python3 -m pip install --user pipx
-    python3 -m pipx ensurepath
+    apt install pipx -y
+    pipx ensurepath
 fi
 
 # Ensure jq is installed
