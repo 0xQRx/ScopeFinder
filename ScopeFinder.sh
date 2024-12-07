@@ -107,20 +107,20 @@ fi
 # Ensure pipx is installed
 if ! command_exists pipx; then
     echo "Pipx is not installed. Installing pipx..."
-    apt install pipx -y
-    pipx ensurepath
+    apt install pipx -y > /dev/null
+    pipx ensurepath > /dev/null
 fi
 
 # Ensure jq is installed
 if ! command_exists jq; then
     echo "jq is not installed. Installing jq..."
-    apt update && apt install jq -y
+    apt update && apt install jq -y > /dev/null
 fi
 
 # Ensure jq is installed
 if ! command_exists gcc; then
     echo "gcc is not installed. Installing gcc..."
-    apt update && apt install gcc -y
+    apt update && apt install gcc -y > /dev/null
 fi
 
 # Check if the file /usr/bin/httpx exists and remove it
@@ -136,55 +136,55 @@ check_and_install_tools() {
     # Subfinder
     if ! command_exists subfinder; then
         echo "Installing subfinder..."
-        go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+        go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest > /dev/null
     fi
 
     # waymore
     if ! command_exists waymore; then
         echo "Installing waymore..."
-        pipx install git+https://github.com/xnl-h4ck3r/waymore.git -v
+        pipx install git+https://github.com/xnl-h4ck3r/waymore.git -v > /dev/null
     fi
 
     # httpx
     if ! command_exists httpx; then
         echo "Installing httpx..."
-        go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
+        go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest > /dev/null
     fi
 
     # smap
     if ! command_exists smap; then
         echo "Installing smap..."
-        go install -v github.com/s0md3v/smap/cmd/smap@latest
+        go install -v github.com/s0md3v/smap/cmd/smap@latest > /dev/null
     fi
 
     # crtsh-tool
     if ! command_exists crtsh-tool; then
         echo "Installing crtsh-tool..."
-        GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@latest
+        GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@latest > /dev/null
     fi
 
     # shosubgo
     if ! command_exists shosubgo; then
         echo "Installing shosubgo..."
-        go install github.com/incogbyte/shosubgo@latest
+        go install github.com/incogbyte/shosubgo@latest > /dev/null
     fi
 
     #subbrute
     if ! command_exists subbrute; then
         echo "Installing subbrute..."
-        go install github.com/0xQRx/subbrute/cmd/subbrute@latest
+        go install github.com/0xQRx/subbrute/cmd/subbrute@latest > /dev/null
     fi
 
     #CloudRecon
     if ! command_exists CloudRecon; then
         echo "Installing CloudRecon..."
-        go install github.com/g0ldencybersec/CloudRecon@latest
+        go install github.com/g0ldencybersec/CloudRecon@latest > /dev/null
     fi
 
     #asnmap
     if ! command_exists asnmap; then
         echo "Installing asnmap..."
-        go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest
+        go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest > /dev/null
     fi
 
     echo "All required tools are installed."
