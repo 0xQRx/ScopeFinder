@@ -90,108 +90,74 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Ensure Golang is installed
-if ! command_exists go; then
-    echo "Golang is not installed. Please install it first."
-    echo "Download and install from https://go.dev/"
-    exit 1
-fi
+# Ensure prerequisites
+ensure_prerequisites() {
+    if ! command_exists go; then
+        echo "Golang is not installed. Please install it first from https://go.dev/"
+        exit 1
+    fi
 
-# Ensure GOBIN is in PATH
-if [[ ":$PATH:" != *":$HOME/go/bin:"* ]]; then
-    echo "Please add GOBIN to your PATH: export PATH=\$PATH:\$HOME/go/bin"
-    echo "Add it to your shell configuration file (e.g., ~/.zshrc or ~/.bashrc)."
-    exit 1
-fi
+    if [[ ":$PATH:" != *":$HOME/go/bin:"* ]]; then
+        echo "Add GOBIN to your PATH: export PATH=\$PATH:\$HOME/go/bin"
+        echo "Update your shell configuration file (e.g., ~/.zshrc or ~/.bashrc)."
+        exit 1
+    fi
 
-# Ensure pipx is installed
-if ! command_exists pipx; then
-    echo "Pipx is not installed. Installing pipx..."
-    apt install pipx -y > /dev/null
-    pipx ensurepath > /dev/null
-fi
+    if ! command_exists jq; then
+        echo "Installing required libraries..."
+        apt update && apt install -y \
+            libnss3 libxss1 libatk1.0-0 libatk-bridge2.0-0 libdrm2 libx11-xcb1 \
+            libxcomposite1 libxcursor1 libxdamage1 libxi6 libxtst6 libasound2 \
+            libpangocairo-1.0-0 libcups2 libxkbcommon0 fonts-liberation libgbm-dev \
+            libpango1.0-0 libjpeg-dev libxrandr2 xdg-utils wget gcc jq pipx > /dev/null
+        pipx ensurepath > /dev/null
+    fi
 
-# Ensure jq is installed
-if ! command_exists jq; then
-    echo "jq is not installed. Installing jq..."
-    apt update && apt install jq -y > /dev/null
-fi
+    if [ -f /usr/bin/httpx ]; then
+        echo "Removing existing /usr/bin/httpx."
+        sudo rm /usr/bin/httpx
+    fi
+}
 
-# Ensure jq is installed
-if ! command_exists gcc; then
-    echo "gcc is not installed. Installing gcc..."
-    apt update && apt install gcc -y > /dev/null
-fi
+# Install tools if missing and verify installation
+install_tool() {
+    local tool_name=$1
+    local install_command=$2
 
-# Check if the file /usr/bin/httpx exists and remove it
-if [ -f /usr/bin/httpx ]; then
-  echo "The file /usr/bin/httpx exists and will be removed."
-  sudo rm /usr/bin/httpx
-fi
+    if ! command_exists "$tool_name"; then
+        echo "Installing $tool_name..."
+        if eval "$install_command"; then
+            if command_exists "$tool_name"; then
+                echo "$tool_name installed successfully."
+            else
+                echo "ERROR: $tool_name failed to install. Please install it manually."
+            fi
+        else
+            echo "ERROR: $tool_name installation command failed. Please install it manually."
+        fi
+    fi
+}
 
-# Function to check and install tools
 check_and_install_tools() {
     echo "Checking and installing tools..."
 
-    # Subfinder
-    if ! command_exists subfinder; then
-        echo "Installing subfinder..."
-        go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest > /dev/null
-    fi
+    install_tool "subfinder" "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest > /dev/null"
+    install_tool "waymore" "pipx install git+https://github.com/xnl-h4ck3r/waymore.git > /dev/null"
+    install_tool "httpx" "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest > /dev/null"
+    install_tool "smap" "go install -v github.com/s0md3v/smap/cmd/smap@latest > /dev/null"
+    install_tool "crtsh-tool" "GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@latest > /dev/null"
+    install_tool "shosubgo" "go install github.com/incogbyte/shosubgo@latest > /dev/null"
+    install_tool "subbrute" "go install github.com/0xQRx/subbrute/cmd/subbrute@latest > /dev/null"
+    install_tool "CloudRecon" "go install github.com/g0ldencybersec/CloudRecon@latest > /dev/null"
+    install_tool "asnmap" "go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest > /dev/null"
 
-    # waymore
-    if ! command_exists waymore; then
-        echo "Installing waymore..."
-        pipx install git+https://github.com/xnl-h4ck3r/waymore.git > /dev/null
-    fi
-
-    # httpx
-    if ! command_exists httpx; then
-        echo "Installing httpx..."
-        go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest > /dev/null
-    fi
-
-    # smap
-    if ! command_exists smap; then
-        echo "Installing smap..."
-        go install -v github.com/s0md3v/smap/cmd/smap@latest > /dev/null
-    fi
-
-    # crtsh-tool
-    if ! command_exists crtsh-tool; then
-        echo "Installing crtsh-tool..."
-        GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@latest > /dev/null
-    fi
-
-    # shosubgo
-    if ! command_exists shosubgo; then
-        echo "Installing shosubgo..."
-        go install github.com/incogbyte/shosubgo@latest > /dev/null
-    fi
-
-    #subbrute
-    if ! command_exists subbrute; then
-        echo "Installing subbrute..."
-        go install github.com/0xQRx/subbrute/cmd/subbrute@latest > /dev/null
-    fi
-
-    #CloudRecon
-    if ! command_exists CloudRecon; then
-        echo "Installing CloudRecon..."
-        go install github.com/g0ldencybersec/CloudRecon@latest > /dev/null
-    fi
-
-    #asnmap
-    if ! command_exists asnmap; then
-        echo "Installing asnmap..."
-        go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest > /dev/null
-    fi
-
-    echo "All required tools are installed."
+    echo "All tools checked."
 }
 
-# Run the tool installation check
+# Ensure prerequisites and run tool installation
+ensure_prerequisites
 check_and_install_tools
+
 
 # Handle input (single domain)
 DOMAIN="$1"
