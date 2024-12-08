@@ -4,52 +4,29 @@
 usage() {
     echo "Usage: sudo $0 [domain]"
     echo
-    echo "This script automates the enumeration and analysis of a domain."
-    echo "It performs tasks like subdomain enumeration, email and credential searches,"
-    echo "URL finding, port scanning, and active enumeration with banner grabbing and screenshots."
+    echo "This script automates reconnaissance tasks on a given domain. It:"
+    echo " - Checks and installs required tools"
+    echo " - Enumerates subdomains from multiple sources"
+    echo " - Finds emails and leaked credentials"
+    echo " - Discovers URLs and crawls them for more data"
+    echo " - Performs port scans to find open services"
+    echo " - Uses Httpx for banner grabbing, screenshots, and tech detection"
+    echo " - Searches for secrets in JavaScript endpoints"
+    echo " - Analyzes ASN ranges and extracts SSL certificate details"
+    echo " - Organizes outputs into well-structured directories"
     echo
-    echo "Prerequisites:"
-    echo "  Ensure the following environment variables are set before running:"
-    echo "    - SHODAN_API_KEY      : Your Shodan API key. (paid)"
-    echo "    - DEHASHED_EMAIL      : Your DeHashed account email. (paid)"
-    echo "    - DEHASHED_API_KEY    : Your DeHashed API key. (paid)"
-    echo "    - HUNTERIO_API_KEY    : Your Hunter.io API key. (free)"
-    echo "    - PDCP_API_KEY        : Your ProjectDiscovery API key. (free)"
+    echo "Environment variables required:"
+    echo " - SHODAN_API_KEY"
+    echo " - DEHASHED_EMAIL"
+    echo " - DEHASHED_API_KEY"
+    echo " - HUNTERIO_API_KEY"
+    echo " - PDCP_API_KEY"
     echo
     echo "Options:"
-    echo "  -h, --help             Display this help menu and exit."
+    echo " -h, --help       Show this help and exit"
     echo
     echo "Example:"
-    echo "  sudo $0 example.com"
-    echo
-    echo "Features:"
-    echo "  - Checks for required tools and installs them if missing."
-    echo "  - Enumerates subdomains using multiple tools and sources."
-    echo "  - Searches for associated emails using Hunter.io."
-    echo "  - Finds leaked credentials for the domain using DeHashed."
-    echo "  - Extracts unique emails and credential pairs."
-    echo "  - Finds URLs passively using Waymore."
-    echo "  - Performs port scanning with Smap."
-    echo "  - Conducts active enumeration with Httpx."
-    echo "  - Analyzes ASN ranges and IPs in STAGE 2."
-    echo
-    echo "Output:"
-    echo "  Results are saved in a folder named after the domain:"
-    echo "    - subdomains.txt            : Enumerated subdomains."
-    echo "    - wildcard_subdomains.txt   : Wildcard subdomains."
-    echo "    - emails.txt                : Extracted emails."
-    echo "    - leaked_credential_pairs.txt : Emails with their associated leaked credentials."
-    echo "    - waymore_URLS.txt          : URLs discovered by Waymore."
-    echo "    - open_ports.txt            : Ports discovered by Smap."
-    echo "    - httpx_output.txt          : Httpx execution log."
-    echo "    - output(folder with httpx results) : Banner grabbing and screenshot details."
-    echo "    - top_level_domains.txt     : Extracted TLDs from SSL certificates."
-    echo "    - asn_ip_ranges.txt         : ASN-derived IP ranges."
-    echo
-    echo "Dependencies:"
-    echo "  This script requires the following tools to be installed:"
-    echo "    - jq, subfinder, waymore, httpx, smap, crtsh-tool, shosubgo, subbrute, CloudRecon, asnmap."
-    echo "  The script will attempt to install missing dependencies automatically."
+    echo " sudo $0 example.com"
     echo
     exit 0
 }
@@ -241,28 +218,6 @@ echo "Running URL finder with waymore - might take a while..."
 waymore -i "$DOMAIN" -mode U -oU "waymore_URLS.txt" > /dev/null 2>&1
 sort -u "waymore_URLS.txt" -o "waymore_URLS.txt"
 
-####### START TODO ########
-
-# Active: Crawling using katana
-
-# katana -list subdomain.txt -headless -no-sandbox -jc -d 3 -c 3 -p 3 -rd 1 -rl 5 -rlm 60 -headless -no-sandbox -o katana_crawled_URLS.txt -silent
-
-# Sort URLs, separate with and without parameters
-
-# Extract all URLs with parameters
-# grep -oP 'https?://[^\s"]+\?[^\s"]*' file.txt
-
-# Extract all URLs without parameters
-# grep -oP 'https?://[^\s"]+' waymore_URLS.txt | grep -v '\?'
-
-#Extract all JS files
-# grep '.js' waymore_URLS.txt >> JS_URL_endpoints.txt
-
-# Active: searching for sensitive information in JS files with jshunter 
-# jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' > jshunter_out.txt
-
-####### END TODO ########
-
 # Passive: Port scanning with smap
 echo "Running Port scanning with smap..."
 mkdir smap_results
@@ -272,6 +227,51 @@ grep -E "443|80" smap_results/open_ports.gnmap | awk '/Host:/ {if ($3 ~ /\(/) {p
 # Active: Banner Grabbing / Screenshots
 echo "Running banner grabbing and taking screenshots for subdomains with httpx..."
 httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "httpx_output.txt" -no-color > /dev/null 2>&1
+
+# Active: Crawling using katana
+# Extract good codes from httpx output file
+grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).*|\1|' | awk '{print $1}' >> subdomains_to_crawl.txt
+
+echo "Crawling subdomains with katana..."
+katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 3 -c 3 -p 3 -rd 1 -rl 5 -rlm 60 -headless -no-sandbox -o katana_crawled_URLS.txt -silent
+
+# Sort URLs, separate with and without parameters
+
+# Extract all URLs with parameters
+grep -oP 'https?://[^\s"]+\?[^\s"]*' katana_crawled_URLS.txt >> URLs_with_params.txt
+grep -oP 'https?://[^\s"]+\?[^\s"]*' waymore_URLS.txt >> URLs_with_params.txt
+
+# Extract all URLs without parameters
+grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_without_params.txt
+grep -oP 'https?://[^\s"]+' waymore_URLS.txt | grep -v '\?' >> URLs_without_params.txt
+
+#Extract all JS files
+grep '.js' waymore_URLS.txt >> JS_URL_endpoints.txt
+grep '.js' katana_crawled_URLS.txt >> JS_URL_endpoints.txt
+
+# Active: searching for sensitive information in JS files with jshunter 
+echo "Searching for secrets with jshunter..."
+jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' >> jshunter_found_secrets.txt
+
+# Cleanup
+# Create sub-directories for organization
+mkdir -p subdomains emails urls scans httpx
+# Move subdomain-related files
+mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>/dev/null
+
+# Move email and credential-related files
+mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
+
+# Move URL-related files
+mv waymore_URLS.txt katana_crawled_URLS.txt URLs_with_params.txt URLs_without_params.txt JS_URL_endpoints.txt jshunter_found_secrets.txt urls/ 2>/dev/null
+
+# Move scanning results
+mv smap_results scans/ 2>/dev/null
+mv webservers_ip_domain.txt scans/ 2>/dev/null
+
+# Move active enumeration results
+mv httpx_output.txt httpx/ 2>/dev/null
+mv output httpx/ 2>/dev/null
 
 echo "STAGE 1 is finished. You can start working with the results in ${STAGE1} directory."
 
