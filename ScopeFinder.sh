@@ -248,6 +248,7 @@ grep -oP 'https?://[^\s"]+' waymore_URLS.txt | grep -v '\?' >> URLs_without_para
 #Extract all JS files
 grep '.js' waymore_URLS.txt >> JS_URL_endpoints.txt
 grep '.js' katana_crawled_URLS.txt >> JS_URL_endpoints.txt
+sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 
 # Active: searching for sensitive information in JS files with jshunter 
 echo "Searching for secrets with jshunter..."
@@ -272,6 +273,7 @@ mv webservers_ip_domain.txt scans/ 2>/dev/null
 # Move active enumeration results
 mv httpx_output.txt httpx/ 2>/dev/null
 mv output httpx/ 2>/dev/null
+rm output.txt
 
 echo "STAGE 1 is finished. You can start working with the results in ${STAGE1} directory."
 
