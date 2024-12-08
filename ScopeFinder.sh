@@ -234,19 +234,17 @@ grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).
 
 echo "Crawling subdomains with katana... it will take some time."
 katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 2 -c 3 -p 3 -rd 1 -rl 5 -rlm 60 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
+sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
 
 # Sort URLs, separate with and without parameters
-# TODO: sort uniq
 # Extract all URLs with parameters
 grep -oP 'https?://[^\s"]+\?[^\s"]*' katana_crawled_URLS.txt >> URLs_with_params.txt
 grep -oP 'https?://[^\s"]+\?[^\s"]*' waymore_URLS.txt >> URLs_with_params.txt
 
-# TODO: sort uniq
 # Extract all URLs without parameters
 grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_without_params.txt
 grep -oP 'https?://[^\s"]+' waymore_URLS.txt | grep -v '\?' >> URLs_without_params.txt
 
-# TODO: sort uniq
 #Extract all JS files
 grep '.js' waymore_URLS.txt >> JS_URL_endpoints.txt
 grep '.js' katana_crawled_URLS.txt >> JS_URL_endpoints.txt
