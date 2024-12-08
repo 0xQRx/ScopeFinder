@@ -256,7 +256,7 @@ jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' >> jshunter_found_se
 
 # Cleanup
 # Create sub-directories for organization
-mkdir -p subdomains emails urls scans httpx
+mkdir -p subdomains emails urls/artifacts scans httpx
 # Move subdomain-related files
 mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>/dev/null
 
@@ -264,7 +264,8 @@ mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>
 mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 
 # Move URL-related files
-mv waymore_URLS.txt katana_crawled_URLS.txt URLs_with_params.txt URLs_without_params.txt JS_URL_endpoints.txt jshunter_found_secrets.txt urls/ 2>/dev/null
+mv URLs_with_params.txt URLs_without_params.txt urls/ 2>/dev/null
+mv waymore_URLS.txt katana_crawled_URLS.txt JS_URL_endpoints.txt jshunter_found_secrets.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
 mv smap_results scans/ 2>/dev/null
