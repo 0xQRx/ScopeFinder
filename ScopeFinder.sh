@@ -247,10 +247,19 @@ sort -u "waymore_URLS.txt" -o "waymore_URLS.txt"
 
 # katana -list subdomain.txt -headless -no-sandbox -jc -d 3 -c 3 -p 3 -rd 1 -rl 5 -rlm 60 -headless -no-sandbox -o katana_crawled_URLS.txt -silent
 
-# Passive: searching for sensitive information in JS files with jshunter 
-# jshunter -u http://blog.x.com/b/csi.js
-
 # Sort URLs, separate with and without parameters
+
+# Extract all URLs with parameters
+# grep -oP 'https?://[^\s"]+\?[^\s"]*' file.txt
+
+# Extract all URLs without parameters
+# grep -oP 'https?://[^\s"]+' waymore_URLS.txt | grep -v '\?'
+
+#Extract all JS files
+# grep '.js' waymore_URLS.txt >> JS_URL_endpoints.txt
+
+# Active: searching for sensitive information in JS files with jshunter 
+# jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' > jshunter_out.txt
 
 ####### END TODO ########
 
