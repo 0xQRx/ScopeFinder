@@ -233,7 +233,7 @@ httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "htt
 grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).*|\1|' | awk '{print $1}' >> subdomains_to_crawl.txt
 
 echo "Crawling subdomains with katana... it will take some time."
-katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 2 -c 3 -p 3 -rd 1 -rl 5 -rlm 60 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
+katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
 sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
 
 # Sort URLs, separate with and without parameters
@@ -264,8 +264,8 @@ mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>
 mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 
 # Move URL-related files
-mv URLs_with_params.txt URLs_without_params.txt urls/ 2>/dev/null
-mv waymore_URLS.txt katana_crawled_URLS.txt JS_URL_endpoints.txt jshunter_found_secrets.txt urls/artifacts/ 2>/dev/null
+mv URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
+mv waymore_URLS.txt katana_crawled_URLS.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
 mv smap_results scans/ 2>/dev/null
