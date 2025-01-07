@@ -377,10 +377,10 @@ cd - || exit
 
 echo "All tasks completed."
 
-echo "Review the extracted subdomains and use the following command to perform DNS brute-forcing with subbrute:
-subbrute -d example.com -w dns-names.txt -t 20 -ns 8.8.8.8,1.1.1.1 --depth 3
+# echo "Review the extracted subdomains and use the following command to perform DNS brute-forcing with subbrute:
+# subbrute -d example.com -w dns-names.txt -t 20 -ns 8.8.8.8,1.1.1.1 --depth 3
 
-- Create a custom list of subdomains for your target.
-- Keep the number of subdomains below 100 for manageable complexity.
-- Increasing depth can significantly increase the workload and time required."
+# - Create a custom list of subdomains for your target.
+# - Keep the number of subdomains below 100 for manageable complexity.
+# - Increasing depth can significantly increase the workload and time required."
 
