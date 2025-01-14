@@ -42,7 +42,7 @@ RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest 
     go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest && \
     pipx install git+https://github.com/xnl-h4ck3r/waymore.git && \
     CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest && \
-    go install -v github.com/cc1a2b/jshunter@latest
+    go install -v github.com/0xQRx/jshunter@latest
 
 # Copy the script into the container
 COPY ScopeFinder.sh /opt/ScopeFinder.sh
