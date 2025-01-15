@@ -293,7 +293,8 @@ asnmap -d $BASE_NAME -silent >> asn_ip_ranges.txt
 
 if [ ! -s asn_ip_ranges.txt ]; then
   echo "No ASN ranges found. STAGE 2 abort."
-  cd - || exit
+  cd -
+  exit 1
 fi
 
 # Port scanning with smap
