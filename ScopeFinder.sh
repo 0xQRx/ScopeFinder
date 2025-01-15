@@ -2,7 +2,7 @@
 
 # Help function to display usage
 usage() {
-    echo "Usage: sudo $0 [domain]"
+    echo "Usage: ScopeFinder [domain]"
     echo
     echo "This script automates reconnaissance tasks on a given domain. It:"
     echo " - Checks and installs required tools"
@@ -26,7 +26,7 @@ usage() {
     echo " -h, --help       Show this help and exit"
     echo
     echo "Example:"
-    echo " sudo $0 example.com"
+    echo " ScopeFinder example.com"
     echo
     exit 0
 }
