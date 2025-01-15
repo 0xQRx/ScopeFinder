@@ -129,7 +129,7 @@ check_and_install_tools() {
     install_tool "asnmap" "go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest > /dev/null"
     install_tool "katana" "CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest > /dev/null"
     install_tool "jshunter" "go install -v github.com/cc1a2b/jshunter@latest > /dev/null"
-
+    #install_tool "xnLinkFinder" "pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git > /dev/null"
     echo "All tools checked."
 }
 
@@ -215,7 +215,7 @@ echo "Finished email and credential search..."
 
 # Passive: URL finder
 echo "Running URL finder with waymore - might take a while..."
-waymore -i "$DOMAIN" -mode U -oU "waymore_URLS.txt" > /dev/null 2>&1
+waymore -i "$DOMAIN" -mode U -f -oU "waymore_URLS.txt" > /dev/null 2>&1
 sort -u "waymore_URLS.txt" -o "waymore_URLS.txt"
 
 # Passive: Port scanning with smap

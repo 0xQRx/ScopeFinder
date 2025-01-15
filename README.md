@@ -22,7 +22,7 @@
 - **Ensure that golang in Dockerfile matches your arch. Default `amd64`.**
 
 ## Config Files
-Some tools require specific configuration files for additional API keys:
+**Some tools require specific configuration files for additional API keys, remove `.example` extention from ALL config files**:
 - **Waymore**: `.config/waymore/config.yml`
   ```yaml
   URLSCAN_API_KEY: your_urlscan_api_key
@@ -30,11 +30,7 @@ Some tools require specific configuration files for additional API keys:
   ```
 - **Subfinder**: `.config/subfinder/provider-config.yaml`
   ```yaml
-  resolvers:
-    - 8.8.8.8
-    - 1.1.1.1
-  providers:
-    shodan:
+  shodan:
       - your_shodan_api_key
   ```
 
