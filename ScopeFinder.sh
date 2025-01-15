@@ -252,7 +252,7 @@ sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 
 # Active: searching for sensitive information in JS files with jshunter 
 echo "Searching for secrets with jshunter..."
-jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' >> jshunter_found_secrets.txt
+jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' | grep -v "Failed" >> jshunter_found_secrets.txt
 
 # Cleanup
 # Create sub-directories for organization
