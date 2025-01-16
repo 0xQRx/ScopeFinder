@@ -24,8 +24,14 @@
      export HUNTERIO_API_KEY=your_hunterio_api_key
      export PDCP_API_KEY=your_projectdiscovery_api_key
      ```
-- **Ensure that golang in Dockerfile matches your arch. Default `amd64`.**
-
+- **Ensure that golang in Dockerfile matches your arch. Default `amd64`(Mac Intel Chip).**
+    - For **Apple Silicon** modify `Dockerfile` section `Install Golang` to include `arm64` golang binary instead of `amd64`:
+      ```Dockerfile
+      # Install Golang (required for the tools)
+      RUN wget https://go.dev/dl/go1.23.5.linux-arm64.tar.gz && \
+          tar -C /usr/local -xzf go1.23.5.linux-arm64.tar.gz  && \
+          rm go1.23.5.linux-arm64.tar.gz 
+      ```
 ## Config Files
 **Some tools require specific configuration files for additional API keys, remove `.example` extention from ALL config files**:
 - **Waymore**: `.config/waymore/config.yml`
