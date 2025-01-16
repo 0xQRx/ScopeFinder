@@ -68,5 +68,59 @@ Run the tool with the alias:
 ScopeFinder example.com
 ```
 
-All results will be saved in the current working directory.
+All results will be saved in the current working directory from where tool was run.
+
+## Output example
+
+```
+├── STAGE_1
+│   ├── emails
+│   │   ├── dehashed_raw.json
+│   │   ├── emails.txt
+│   │   └── leaked_credential_pairs.txt
+│   ├── httpx
+│   │   ├── httpx_output.txt
+│   │   └── output
+│   │       ├── response
+│   │       └── screenshot
+│   ├── scans
+│   │   ├── smap_results
+│   │   │   ├── open_ports.gnmap
+│   │   │   ├── open_ports.nmap
+│   │   │   └── open_ports.xml
+│   │   └── webservers_ip_domain.txt
+│   ├── subdomains
+│   │   ├── subdomains.txt
+│   │   ├── subdomains_to_crawl.txt
+│   │   └── wildcard_subdomains.txt
+│   └── urls
+│       ├── URLs_with_params.txt
+│       ├── URLs_without_params.txt
+│       ├── artifacts
+│       │   ├── JS_URL_endpoints.txt
+│       │   ├── katana_crawled_URLS.txt
+│       │   └── waymore_URLS.txt
+│       └── jshunter_found_secrets.txt
+└── STAGE_2
+    ├── CloudRecon_raw.json
+    ├── asn_ip_ranges.txt
+    ├── example-new.co
+    │   ├── httpx_output.txt
+    │   ├── output
+    │   │   ├── response
+    │   │   └── screenshot
+    │   └── subdomains.txt
+    ├── example.com
+    │   ├── httpx_output.txt
+    │   ├── output
+    │   │   ├── response
+    │   │   └── screenshot
+    │   └── subdomains.txt
+    ├── smap_results
+    │   ├── open_ports.gnmap
+    │   ├── open_ports.nmap
+    │   └── open_ports.xml
+    ├── top_level_domains.txt
+    └── webservers_ip_domain.txt
+```
 
