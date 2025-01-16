@@ -28,7 +28,7 @@ RUN wget https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/113
 
 # Set Golang environment variables
 ENV PATH="/usr/local/go/bin:/root/.local/bin:$PATH"
-ENV GOBIN="$HOME/go/bin"
+ENV GOBIN="/root/go/bin"
 ENV PATH="$PATH:$GOBIN"
 
 # Install the required tools using Go and pipx
