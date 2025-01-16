@@ -42,7 +42,7 @@ docker build -t scopefinder .
 
 ## Create an Alias, add ScopeFinder to your PATH
 
-- Add `export SCOPEFINDER_PATH=/path/to/scopefinder/folder` to your your shell configuration file and reload `source ~/.zshrc` (e.g., `~/.bashrc` or `~/.zshrc`).
+- Add `export SCOPEFINDER_PATH=/path/to/scopefinder/folder` to your shell configuration file and reload `source ~/.zshrc` (e.g., `~/.bashrc` or `~/.zshrc`).
 
 Add the following alias to your shell configuration file (e.g., `~/.bashrc` or `~/.zshrc`):
 ```bash
