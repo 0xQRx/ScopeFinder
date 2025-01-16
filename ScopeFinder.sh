@@ -128,7 +128,7 @@ check_and_install_tools() {
     install_tool "CloudRecon" "go install github.com/g0ldencybersec/CloudRecon@latest > /dev/null"
     install_tool "asnmap" "go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest > /dev/null"
     install_tool "katana" "CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest > /dev/null"
-    install_tool "jshunter" "go install -v github.com/0xQRx/jshunter@latest > /dev/null"
+    install_tool "jshunter" "GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@latest > /dev/null"
     #install_tool "xnLinkFinder" "pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git > /dev/null"
     echo "All tools checked."
 }
