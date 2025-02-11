@@ -246,8 +246,8 @@ grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_witho
 grep -oP 'https?://[^\s"]+' waymore_URLS.txt | grep -v '\?' >> URLs_without_params.txt
 
 #Extract all JS files
-grep '.js' waymore_URLS.txt >> JS_URL_endpoints.txt
-grep '.js' katana_crawled_URLS.txt >> JS_URL_endpoints.txt
+grep '\.js' waymore_URLS.txt >> JS_URL_endpoints.txt
+grep '\.js' katana_crawled_URLS.txt >> JS_URL_endpoints.txt
 sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 
 # Active: searching for sensitive information in JS files with jshunter 
