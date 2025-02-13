@@ -127,8 +127,9 @@ check_and_install_tools() {
     install_tool "subbrute" "go install github.com/0xQRx/subbrute/cmd/subbrute@latest > /dev/null"
     install_tool "CloudRecon" "go install github.com/g0ldencybersec/CloudRecon@latest > /dev/null"
     install_tool "asnmap" "go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest > /dev/null"
-    install_tool "katana" "CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest > /dev/null"
+    #install_tool "katana" "CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest > /dev/null"
     install_tool "jshunter" "GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@latest > /dev/null"
+    install_tool "urldedup" "GOPRIVATE=github.com/0xQRx/urldedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@latest > /dev/null"
     #install_tool "xnLinkFinder" "pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git > /dev/null"
     echo "All tools checked."
 }
@@ -248,12 +249,12 @@ grep -oP 'https?://[^\s"]+' waymore_URLS.txt | grep -v '\?' >> URLs_without_para
 sort -u "URLs_without_params.txt" -o "URLs_without_params.txt"
 
 # Prep URL for Burp Scanner
-# echo "Probing unique URLs... Building URL list for BURP scanner... Grab a coffee!"
-# awk -F'[?&]' '!seen[$1]++ && !($1 ~ /\.(css|js|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|otf|ico|webp)$/)' URLs_with_params.txt | while read url; do  
-#     if curl -s -o /dev/null -w "%{http_code}" "$url" | grep -q '^200$'; then
-#         echo "$url" >> URLs_with_params_for_BurpScanner.txt
-#     fi
-# done
+echo "Probing unique URLs... Building URL list for BURP scanner... Grab a coffee!"
+urldedup -f URLs_with_params.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4" | while read url; do   
+    if curl -s -o /dev/null -w "%{http_code}" "$url" | grep -qE '^(200|302)$'; then
+        echo "$url" >> URLs_with_params_for_BurpScanner.txt
+    fi
+done
 
 #Extract all JS files
 grep '\.js' waymore_URLS.txt >> JS_URL_endpoints.txt
