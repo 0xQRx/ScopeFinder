@@ -178,8 +178,8 @@ echo "Running Subdomain enumeration with subfinder..."
 subfinder -d "$DOMAIN" -all -silent >> "subdomains.txt"
 
 echo "Running Subdomain enumeration with crtsh-tool..."
-crtsh-tool --domain "$DOMAIN" | grep -v '\*.' >> "subdomains.txt"
-crtsh-tool --domain "$DOMAIN" | grep '\*.' >> "wildcard_subdomains.txt"
+crtsh-tool --domain "$DOMAIN" | grep -v '[DEBUG]' | grep -v '\*.' >> "subdomains.txt"
+crtsh-tool --domain "$DOMAIN" | grep -v '[DEBUG]' | grep '\*.' >> "wildcard_subdomains.txt"
 
 echo "Running Subdomain enumeration with shosubgo..."
 shosubgo -d "$DOMAIN" -s "$SHODAN_API_KEY" | grep -v 'No subdomains found' | grep -v 'apishodan.JsonSubDomain' | {
@@ -232,22 +232,32 @@ httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "htt
 # Extract good codes from httpx output file
 grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).*|\1|' | awk '{print $1}' >> subdomains_to_crawl.txt
 
-echo "Crawling subdomains with katana... it will take some time."
-katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
-sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
+# echo "Crawling subdomains with katana... it will take some time."
+# katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
+# sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
 
 # Sort URLs, separate with and without parameters
 # Extract all URLs with parameters
-grep -oP 'https?://[^\s"]+\?[^\s"]*' katana_crawled_URLS.txt >> URLs_with_params.txt
+# grep -oP 'https?://[^\s"]+\?[^\s"]*' katana_crawled_URLS.txt >> URLs_with_params.txt
 grep -oP 'https?://[^\s"]+\?[^\s"]*' waymore_URLS.txt >> URLs_with_params.txt
+sort -u "URLs_with_params.txt" -o "URLs_with_params.txt"
 
 # Extract all URLs without parameters
-grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_without_params.txt
+# grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_without_params.txt
 grep -oP 'https?://[^\s"]+' waymore_URLS.txt | grep -v '\?' >> URLs_without_params.txt
+sort -u "URLs_without_params.txt" -o "URLs_without_params.txt"
+
+# Prep URL for Burp Scanner
+# echo "Probing unique URLs... Building URL list for BURP scanner... Grab a coffee!"
+# awk -F'[?&]' '!seen[$1]++ && !($1 ~ /\.(css|js|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|otf|ico|webp)$/)' URLs_with_params.txt | while read url; do  
+#     if curl -s -o /dev/null -w "%{http_code}" "$url" | grep -q '^200$'; then
+#         echo "$url" >> URLs_with_params_for_BurpScanner.txt
+#     fi
+# done
 
 #Extract all JS files
 grep '\.js' waymore_URLS.txt >> JS_URL_endpoints.txt
-grep '\.js' katana_crawled_URLS.txt >> JS_URL_endpoints.txt
+#grep '\.js' katana_crawled_URLS.txt >> JS_URL_endpoints.txt
 sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 
 # Active: searching for sensitive information in JS files with jshunter 
@@ -265,8 +275,9 @@ mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>
 mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 
 # Move URL-related files
-mv URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
-mv waymore_URLS.txt katana_crawled_URLS.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
+mv URLs_with_params_for_BurpScanner.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
+# mv waymore_URLS.txt katana_crawled_URLS.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
+mv waymore_URLS.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
 mv smap_results scans/ 2>/dev/null
