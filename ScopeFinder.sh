@@ -154,6 +154,42 @@ check_config_warnings() {
 
 check_config_warnings
 
+danger_prank() {
+    echo -e "\e[31m"  # Red color
+
+    cat << "EOF"
+                                                  ______               __ 
+                                                 /      \             /  |
+  ______   _____  ____                  ______  /$$$$$$  |           /$$/ 
+ /      \ /     \/    \        ______  /      \ $$ |_ $$/           /$$/  
+/$$$$$$  |$$$$$$ $$$$  |      /      |/$$$$$$  |$$   |             /$$/   
+$$ |  $$/ $$ | $$ | $$ |      $$$$$$/ $$ |  $$/ $$$$/             /$$/    
+$$ |      $$ | $$ | $$ |              $$ |      $$ |             /$$/     
+$$ |      $$ | $$ | $$ |              $$ |      $$ |            /$$/      
+$$/       $$/  $$/  $$/               $$/       $$/             $$/       
+EOF
+
+    echo -e "\n🚨🚨🚨 DANGER! SYSTEM WIPE INITIATED 🚨🚨🚨"
+    echo -e "Deleting all files in:\n"
+
+    # Fake countdown
+    for i in {5..1}; do
+        echo -e "\e[31m $i... \e[0m"
+        sleep 1
+    done
+
+    echo -e "\e[31m rm -rf / is running... \e[0m"
+    sleep 2
+
+    echo -e "\e[32m Just kidding! 😆 Your system is safe. \e[0m"
+    echo -e "\e[32m Enjoy the ride! 🎢❤️ \e[0m \n"
+    sleep 1
+}
+
+# Call the function
+danger_prank
+
+
 # Handle input (single domain)
 DOMAIN="$1"
 
