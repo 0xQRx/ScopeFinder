@@ -122,15 +122,12 @@ check_and_install_tools() {
     install_tool "waymore" "pipx install git+https://github.com/xnl-h4ck3r/waymore.git > /dev/null"
     install_tool "httpx" "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest > /dev/null"
     install_tool "smap" "go install -v github.com/s0md3v/smap/cmd/smap@latest > /dev/null"
-    install_tool "crtsh-tool" "GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@latest > /dev/null"
+    install_tool "crtsh-tool" "GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@main > /dev/null"
     install_tool "shosubgo" "go install github.com/incogbyte/shosubgo@latest > /dev/null"
-    install_tool "subbrute" "go install github.com/0xQRx/subbrute/cmd/subbrute@latest > /dev/null"
     install_tool "CloudRecon" "go install github.com/g0ldencybersec/CloudRecon@latest > /dev/null"
     install_tool "asnmap" "go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest > /dev/null"
-    #install_tool "katana" "CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest > /dev/null"
-    install_tool "jshunter" "GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@latest > /dev/null"
-    install_tool "urldedup" "GOPRIVATE=github.com/0xQRx/urldedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@latest > /dev/null"
-    #install_tool "xnLinkFinder" "pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git > /dev/null"
+    install_tool "jshunter" "GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@main > /dev/null"
+    install_tool "urldedup" "GOPRIVATE=github.com/0xQRx/URLDedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@main > /dev/null"
     echo "All tools checked."
 }
 
@@ -233,32 +230,21 @@ httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "htt
 # Extract good codes from httpx output file
 grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).*|\1|' | awk '{print $1}' >> subdomains_to_crawl.txt
 
-# echo "Crawling subdomains with katana... it will take some time."
-# katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
-# sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
-
 # Sort URLs, separate with and without parameters
 # Extract all URLs with parameters
-# grep -oP 'https?://[^\s"]+\?[^\s"]*' katana_crawled_URLS.txt >> URLs_with_params.txt
 grep -oP 'https?://[^\s"]+\?[^\s"]*' waymore_URLS.txt >> URLs_with_params.txt
 sort -u "URLs_with_params.txt" -o "URLs_with_params.txt"
 
 # Extract all URLs without parameters
-# grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_without_params.txt
 grep -oP 'https?://[^\s"]+' waymore_URLS.txt | grep -v '\?' >> URLs_without_params.txt
 sort -u "URLs_without_params.txt" -o "URLs_without_params.txt"
 
-# Prep URL for Burp Scanner
+# Prep unique and live URLs for Burp Scanner
 echo "Probing unique URLs... Building URL list for BURP scanner... Grab a coffee!"
-urldedup -f URLs_with_params.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4" | while read url; do   
-    if curl -s -o /dev/null -w "%{http_code}" "$url" | grep -qE '^(200|302)$'; then
-        echo "$url" >> URLs_with_params_for_BurpScanner.txt
-    fi
-done
+urldedup -f URLs_with_params.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4" -examples 1 
 
 #Extract all JS files
 grep '\.js' waymore_URLS.txt >> JS_URL_endpoints.txt
-#grep '\.js' katana_crawled_URLS.txt >> JS_URL_endpoints.txt
 sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 
 # Active: searching for sensitive information in JS files with jshunter 
@@ -268,7 +254,7 @@ sort -u "jshunter_found_secrets.txt" -o "jshunter_found_secrets.txt"
 
 # Cleanup
 # Create sub-directories for organization
-mkdir -p subdomains emails urls/artifacts scans httpx
+mkdir -p subdomains emails urls/artifacts urls/burp_scanner scans httpx
 # Move subdomain-related files
 mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>/dev/null
 
@@ -276,8 +262,8 @@ mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>
 mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 
 # Move URL-related files
-mv URLs_with_params_for_BurpScanner.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
-# mv waymore_URLS.txt katana_crawled_URLS.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
+mv URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
+mv BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
 mv waymore_URLS.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
@@ -390,11 +376,4 @@ echo "HTTPX scanning completed for all subdomains."
 cd - || exit
 
 echo "All tasks completed."
-
-# echo "Review the extracted subdomains and use the following command to perform DNS brute-forcing with subbrute:
-# subbrute -d example.com -w dns-names.txt -t 20 -ns 8.8.8.8,1.1.1.1 --depth 3
-
-# - Create a custom list of subdomains for your target.
-# - Keep the number of subdomains below 100 for manageable complexity.
-# - Increasing depth can significantly increase the workload and time required."
 

@@ -13,10 +13,23 @@ RUN apt update && apt install -y \
     libpango1.0-0 libjpeg-dev libxrandr2 pipx dnsutils ca-certificates && \
     apt clean && rm -rf /var/lib/apt/lists/*
 
-# Install Golang (required for the tools)
-RUN wget https://go.dev/dl/go1.23.4.linux-amd64.tar.gz && \
-    tar -C /usr/local -xzf go1.23.4.linux-amd64.tar.gz && \
-    rm go1.23.4.linux-amd64.tar.gz
+# # Install Golang (required for the tools)
+ENV GO_VERSION=1.23.5
+
+# Detect architecture and install the correct Go version
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; \
+    elif [ "$ARCH" = "aarch64" ]; then ARCH="arm64"; \
+    else echo "Unsupported architecture: $ARCH"; exit 1; fi && \
+    \
+    # Construct the Go download URL dynamically
+    GO_TARBALL="go${GO_VERSION}.linux-${ARCH}.tar.gz" && \
+    GO_URL="https://go.dev/dl/${GO_TARBALL}" && \
+    \
+    # Download and install Go
+    wget "$GO_URL" && \
+    tar -C /usr/local -xzf "$GO_TARBALL" && \
+    rm "$GO_TARBALL"
 
 # Install headless chromium
 RUN wget https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1131003/chrome-linux.zip && \
@@ -35,16 +48,13 @@ ENV PATH="$PATH:$GOBIN"
 RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
     go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest && \
     go install -v github.com/s0md3v/smap/cmd/smap@latest && \
-    GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@latest && \
     go install github.com/incogbyte/shosubgo@latest && \
-    go install github.com/0xQRx/subbrute/cmd/subbrute@latest && \
     go install github.com/g0ldencybersec/CloudRecon@latest && \
     go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest && \
     pipx install git+https://github.com/xnl-h4ck3r/waymore.git && \
-    #pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git && \
-    #CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest && \
-    GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@latest && \
-    GOPRIVATE=github.com/0xQRx/urldedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@latest
+    GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@main && \
+    GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@main && \
+    GOPRIVATE=github.com/0xQRx/URLDedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@main
 
 # Copy the script into the container
 COPY ScopeFinder.sh /opt/ScopeFinder.sh
