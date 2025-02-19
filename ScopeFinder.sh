@@ -127,7 +127,7 @@ check_and_install_tools() {
     install_tool "CloudRecon" "go install github.com/g0ldencybersec/CloudRecon@latest > /dev/null"
     install_tool "asnmap" "go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest > /dev/null"
     install_tool "jshunter" "GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@main > /dev/null"
-    install_tool "urldedup" "GOPRIVATE=github.com/0xQRx/URLDedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@main > /dev/null"
+    install_tool "uro" "pipx install uro > /dev/null"
     echo "All tools checked."
 }
 
@@ -277,7 +277,13 @@ sort -u "URLs_without_params.txt" -o "URLs_without_params.txt"
 
 # Prep unique and live URLs for Burp Scanner
 echo "Probing unique URLs... Building URL list for BURP scanner... Grab a coffee!"
-urldedup -f URLs_with_params.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 
+uro -i URLs_with_params.txt | while read url; do 
+  response=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+  if [[ "$response" == "200" || "$response" == "302" ]]; then
+    echo "$url" >> BURP_SCAN_URLs_with_params.txt
+  fi
+done
+
 
 #Extract all JS files
 grep '\.js' waymore_URLS.txt >> JS_URL_endpoints.txt
@@ -290,7 +296,7 @@ sort -u "jshunter_found_secrets.txt" -o "jshunter_found_secrets.txt"
 
 # Cleanup
 # Create sub-directories for organization
-mkdir -p subdomains emails urls/artifacts urls/burp_scanner scans httpx
+mkdir -p subdomains emails urls/artifacts scans httpx
 # Move subdomain-related files
 mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>/dev/null
 
@@ -298,8 +304,7 @@ mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>
 mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 
 # Move URL-related files
-mv URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
-mv BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
+mv BURP_SCAN_URLs_with_params.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
 mv waymore_URLS.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
