@@ -277,7 +277,7 @@ sort -u "URLs_without_params.txt" -o "URLs_without_params.txt"
 
 # Prep unique and live URLs for Burp Scanner
 echo "Probing unique URLs... Building URL list for BURP scanner... Grab a coffee!"
-urldedup -f URLs_with_params.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4" -examples 1 
+urldedup -f URLs_with_params.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 
 
 #Extract all JS files
 grep '\.js' waymore_URLS.txt >> JS_URL_endpoints.txt
