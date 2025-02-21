@@ -98,6 +98,7 @@ Use the [ActiveScan Kicker](https://github.com/0xQRx/BurpPlugins/tree/master/Act
 │   │   │   ├── open_ports.gnmap
 │   │   │   ├── open_ports.nmap
 │   │   │   └── open_ports.xml
+│   │   ├── ips.txt
 │   │   └── webservers_ip_domain.txt
 │   ├── subdomains
 │   │   ├── subdomains.txt
