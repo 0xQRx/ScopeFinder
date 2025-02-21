@@ -15,30 +15,6 @@
   ```
   sudo apt update && sudo apt install -y docker.io && sudo systemctl enable docker --now && sudo usermod -aG docker $USER
   ```
-  - API Keys:
-   - Set the required API keys as environment variables in your shell configuration file and **RELOAD** your shell `source ~/.zshrc` (e.g., `~/.zshrc`, `~/.bashrc`):
-     ```bash
-     export SHODAN_API_KEY=your_shodan_api_key
-     export DEHASHED_EMAIL=your_dehashed_email
-     export DEHASHED_API_KEY=your_dehashed_api_key
-     export HUNTERIO_API_KEY=your_hunterio_api_key
-     export PDCP_API_KEY=your_projectdiscovery_api_key
-     export URLSCAN_API_KEY=your_urlscan_api_key
-     export VIRUSTOTAL_API_KEY=your_virustotal_api_key
-     ```
-
-## Config Files
-**Some tools require specific configuration files for additional API keys, remove `.example` extention from ALL config files**:
-- **Waymore**: `.config/waymore/config.yml`
-  ```yaml
-  URLSCAN_API_KEY: your_urlscan_api_key
-  VIRUSTOTAL_API_KEY: your_virustotal_api_key
-  ```
-- **Subfinder**: `.config/subfinder/provider-config.yaml`
-  ```yaml
-  shodan:
-      - your_shodan_api_key
-  ```
 
 ## Build the Docker Image
 Run the following command to build the Docker image:
@@ -46,12 +22,42 @@ Run the following command to build the Docker image:
 docker build -t scopefinder .
 ```
 
-## Create an Alias, add ScopeFinder to your PATH
+## Config Files
 
-- Add `export SCOPEFINDER_PATH=/path/to/scopefinder/folder` to your shell configuration file and reload `source ~/.zshrc` (e.g., `~/.bashrc` or `~/.zshrc`).
+Some integrated tools (e.g., Waymore, Subfinder) require specific configuration files containing API keys. Make sure to:
 
-Add the following alias to your shell configuration file (e.g., `~/.bashrc` or `~/.zshrc`):
+1. Locate the configuration files in the `.config` directory.
+2. Remove the `.example` extension (i.e., rename `config.yml.example` to `config.yml`, etc.).
+3. Insert your API keys in the corresponding fields.
+
+- **Waymore**: 
+  `.config/waymore/config.yml`
+  ```yaml
+  URLSCAN_API_KEY: your_urlscan_api_key
+  VIRUSTOTAL_API_KEY: your_virustotal_api_key
+  ```
+- **Subfinder**: 
+  `.config/subfinder/provider-config.yaml`
+  ```yaml
+  shodan:
+      - your_shodan_api_key
+  ```
+
+## Setting Up Environment Variables
+
+ScopeFinder uses environment variables for various API keys. Add the following to your shell configuration file (e.g., `~/.bashrc`, `~/.zshrc`):
+
 ```bash
+export SHODAN_API_KEY=your_shodan_api_key
+export DEHASHED_EMAIL=your_dehashed_email
+export DEHASHED_API_KEY=your_dehashed_api_key
+export HUNTERIO_API_KEY=your_hunterio_api_key
+export PDCP_API_KEY=your_projectdiscovery_api_key
+export URLSCAN_API_KEY=your_urlscan_api_key
+export VIRUSTOTAL_API_KEY=your_virustotal_api_key
+
+export SCOPEFINDER_PATH=/path/to/scopefinder/folder
+
 alias ScopeFinder='docker run --rm -it \
   -e URLSCAN_API_KEY="${URLSCAN_API_KEY}" \
   -e VIRUSTOTAL_API_KEY="${VIRUSTOTAL_API_KEY}" \
@@ -68,7 +74,10 @@ alias ScopeFinder='docker run --rm -it \
 
 ## Usage
 Reload your shell configuration:
+
 ```bash
+source ~/.zshrc
+# or
 source ~/.bashrc
 ```
 Run the tool with the alias:
