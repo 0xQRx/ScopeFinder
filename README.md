@@ -111,7 +111,9 @@ Use the [ActiveScan Kicker](https://github.com/0xQRx/BurpPlugins/tree/master/Act
 │       ├── artifacts
 │       │   ├── JS_URL_endpoints.txt
 │       │   ├── katana_crawled_URLS.txt
-│       │   └── waymore_URLS.txt
+│       ├── linkfinder_output
+│       │   ├── example_com.txt
+│       │   └── dev_example_com.txt
 │       ├── burp_scanner
 │       │   ├── BURP_GAP_URLs_with_params.txt
 │       │   ├── BURP_URLs_with_x8_custom_params.txt

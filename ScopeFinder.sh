@@ -21,6 +21,8 @@ usage() {
     echo " - DEHASHED_API_KEY"
     echo " - HUNTERIO_API_KEY"
     echo " - PDCP_API_KEY"
+    echo " - URLSCAN_API_KEY"
+    echo " - VIRUSTOTAL_API_KEY"
     echo
     echo "Options:"
     echo " -h, --help       Show this help and exit"
@@ -59,6 +61,8 @@ check_env_var "DEHASHED_EMAIL"
 check_env_var "DEHASHED_API_KEY"
 check_env_var "HUNTERIO_API_KEY"
 check_env_var "PDCP_API_KEY"
+check_env_var "URLSCAN_API_KEY"
+check_env_var "VIRUSTOTAL_API_KEY"
 
 echo "All required environment variables are set."
 
@@ -120,7 +124,9 @@ check_and_install_tools() {
 
     install_tool "subfinder" "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest > /dev/null"
     install_tool "waymore" "pipx install git+https://github.com/xnl-h4ck3r/waymore.git > /dev/null"
+    install_tool "linkfinder" "pipx install git+https://github.com/0xQRx/LinkFinder.git --include-deps > /dev/null"
     install_tool "httpx" "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest > /dev/null"
+    install_tool "katana" "CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest > /dev/null"
     install_tool "smap" "go install -v github.com/s0md3v/smap/cmd/smap@latest > /dev/null"
     install_tool "crtsh-tool" "GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@main > /dev/null"
     install_tool "shosubgo" "go install github.com/incogbyte/shosubgo@latest > /dev/null"
@@ -277,12 +283,18 @@ httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "htt
 # Extract good codes from httpx output file
 grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).*|\1|' | awk '{print $1}' >> subdomains_to_crawl.txt
 
+echo "Crawling subdomains with katana... it will take some time."
+katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
+sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
+
 # Sort URLs, separate with and without parameters
 # Extract all URLs with parameters
+grep -oP 'https?://[^\s"]+\?[^\s"]*' katana_crawled_URLS.txt >> URLs_with_params.txt
 grep -oP 'https?://[^\s"]+\?[^\s"]*' collected_URLs.txt >> URLs_with_params.txt
 sort -u "URLs_with_params.txt" -o "URLs_with_params.txt"
 
 # Extract all URLs without parameters
+grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_without_params.txt
 grep -oP 'https?://[^\s"]+' collected_URLs.txt | grep -v '\?' >> URLs_without_params.txt
 sort -u "URLs_without_params.txt" -o "URLs_without_params.txt"
 
@@ -296,14 +308,19 @@ echo "Probing unique URLs... Building URL list for BURP scanner... Grab a coffee
 # done
 uro -i URLs_without_params.txt >> URLs_without_params_uniq.txt
 uro -i URLs_with_params.txt >> URLs_with_params_uniq.txt
-# This outputs two files BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt
-urldedup -f URLs_with_params_uniq.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 -validate -t 20 
+
+urldedup -f URLs_with_params_uniq.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 -validate -t 20 -out-burp BURP_URLs_with_params.txt -out-burp-gap BURP_GAP_URLs_with_params.txt
 
 #Extract all JS files
-grep '\.js' collected_URLs.txt >> JS_URL_endpoints.txt
+grep -E '\.js(\?.*)?$' collected_URLs.txt >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' katana_crawled_URLS.txt >> JS_URL_endpoints_temp.txt
+uro -i JS_URL_endpoints_temp.txt > JS_URL_endpoints.txt
 sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 
 # Active: searching for sensitive information in JS files with jshunter 
+echo "Searching for urls in JS files..."
+linkfinder -i JS_URL_endpoints.txt
+
 echo "Searching for secrets with jshunter..."
 jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' | grep -v "Failed" >> jshunter_found_secrets.txt
 sort -u "jshunter_found_secrets.txt" -o "jshunter_found_secrets.txt"
@@ -321,7 +338,7 @@ mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 
 # Move URL-related files
 mv BURP_URLs_with_x8_custom_params.txt BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
-mv URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
+mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
 mv collected_URLs.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results

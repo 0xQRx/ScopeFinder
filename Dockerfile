@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Update and install necessary packages
 RUN apt update && apt install -y \
-    jq wget curl unzip gcc git make xdg-utils \
+    jq wget curl unzip gcc git make xdg-utils pkg-config libssl-dev \
     libnss3 libxss1 libatk1.0-0 libatk-bridge2.0-0 libdrm2 libx11-xcb1 \
     libxcomposite1 libxcursor1 libxdamage1 libxi6 libxtst6 libasound2 \
     libpangocairo-1.0-0 libcups2 libxkbcommon0 fonts-liberation libgbm-dev \
@@ -32,7 +32,7 @@ RUN ARCH=$(uname -m) && \
     rm "$GO_TARBALL"
 
 # Install Rust
-RUN curl https://sh.rustup.rs -sSf | sh
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
 # Install headless chromium
 RUN wget https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1131003/chrome-linux.zip && \
@@ -52,9 +52,11 @@ RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest 
     go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest && \
     go install -v github.com/s0md3v/smap/cmd/smap@latest && \
     go install github.com/incogbyte/shosubgo@latest && \
+    CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest && \
     go install github.com/g0ldencybersec/CloudRecon@latest && \
     go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest && \
     pipx install git+https://github.com/xnl-h4ck3r/waymore.git && \
+    pipx install git+https://github.com/0xQRx/LinkFinder.git --include-deps && \
     GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@main && \
     GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@main && \
     GOPRIVATE=github.com/0xQRx/godigger go install -v github.com/0xQRx/godigger@main && \
