@@ -325,7 +325,10 @@ echo "Searching for secrets with jshunter..."
 jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' | grep -v "Failed" >> jshunter_found_secrets.txt
 sort -u "jshunter_found_secrets.txt" -o "jshunter_found_secrets.txt"
 
-x8 -u BURP_GAP_URLs_with_params.txt -w /wordlists/burp-parameter-names.txt --one-worker-per-host -W2 -O url -o BURP_URLs_with_x8_custom_params.txt --remove-empty
+echo "Searching for hidden parameters with x8..."
+cat BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt > FUZZ_Params_URLs.txt
+x8 -u FUZZ_Params_URLs.txt -w /wordlists/burp-parameter-names.txt --one-worker-per-host -W2 -O url -o BURP_URLs_with_x8_custom_params.txt --remove-empty
+rm FUZZ_Params_URLs.txt
 
 # Cleanup
 # Create sub-directories for organization
