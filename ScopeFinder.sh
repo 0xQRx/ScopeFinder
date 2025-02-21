@@ -127,7 +127,10 @@ check_and_install_tools() {
     install_tool "CloudRecon" "go install github.com/g0ldencybersec/CloudRecon@latest > /dev/null"
     install_tool "asnmap" "go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest > /dev/null"
     install_tool "jshunter" "GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@main > /dev/null"
+    install_tool "godigger" "GOPRIVATE=github.com/0xQRx/godigger go install -v github.com/0xQRx/godigger@main > /dev/null"
+    install_tool "urldedup" "GOPRIVATE=github.com/0xQRx/URLDedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@main > /dev/null"
     install_tool "uro" "pipx install uro > /dev/null"
+    install_tool "x8" "cargo install x8 > /dev/null"
     echo "All tools checked."
 }
 
@@ -211,6 +214,9 @@ echo "Running STAGE 1. Once it's done, you can start working with the results in
 echo "Running Subdomain enumeration with subfinder..."
 subfinder -d "$DOMAIN" -all -silent >> "subdomains.txt"
 
+echo "Running Subdomain enumeration with godigger..."
+godigger -domain "$DOMAIN" -search subdomains -t 20 >> "subdomains.txt"
+
 echo "Running Subdomain enumeration with crtsh-tool..."
 crtsh-tool --domain "$DOMAIN" | grep -v '[DEBUG]' | grep -v '\*.' >> "subdomains.txt"
 crtsh-tool --domain "$DOMAIN" | grep -v '[DEBUG]' | grep '\*.' >> "wildcard_subdomains.txt"
@@ -227,6 +233,10 @@ sort -u "subdomains.txt" -o "subdomains.txt"
 sort -u "wildcard_subdomains.txt" -o "wildcard_subdomains.txt"
 
 echo "Subdomain enumeration completed for $DOMAIN."
+
+echo "Searching for IPs"
+godigger -domain "$DOMAIN" -search ips -t 20 > ips.txt
+sort -u "ips.txt" -o "ips.txt"
 
 echo "Searching for emails on hunter.io"
 curl -s "https://api.hunter.io/v2/domain-search?domain=${DOMAIN}&api_key=${HUNTERIO_API_KEY}" | jq -r '.data.emails[].value' >> "emails.txt"
@@ -248,9 +258,10 @@ sort -u "leaked_credential_pairs.txt" -o "leaked_credential_pairs.txt"
 echo "Finished email and credential search..."
 
 # Passive: URL finder
-echo "Running URL finder with waymore - might take a while..."
-waymore -i "$DOMAIN" -mode U -f -oU "waymore_URLS.txt" > /dev/null 2>&1
-sort -u "waymore_URLS.txt" -o "waymore_URLS.txt"
+echo "Running URL finder with waymore and godigger - might take a while..."
+waymore -i "$DOMAIN" -mode U -f -oU "collected_URLs.txt" > /dev/null 2>&1
+godigger -domain "$DOMAIN" -search urls -t 20 >> collected_URLs.txt
+sort -u "collected_URLs.txt" -o "collected_URLs.txt"
 
 # Passive: Port scanning with smap
 echo "Running Port scanning with smap..."
@@ -268,25 +279,28 @@ grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).
 
 # Sort URLs, separate with and without parameters
 # Extract all URLs with parameters
-grep -oP 'https?://[^\s"]+\?[^\s"]*' waymore_URLS.txt >> URLs_with_params.txt
+grep -oP 'https?://[^\s"]+\?[^\s"]*' collected_URLs.txt >> URLs_with_params.txt
 sort -u "URLs_with_params.txt" -o "URLs_with_params.txt"
 
 # Extract all URLs without parameters
-grep -oP 'https?://[^\s"]+' waymore_URLS.txt | grep -v '\?' >> URLs_without_params.txt
+grep -oP 'https?://[^\s"]+' collected_URLs.txt | grep -v '\?' >> URLs_without_params.txt
 sort -u "URLs_without_params.txt" -o "URLs_without_params.txt"
 
 # Prep unique and live URLs for Burp Scanner
 echo "Probing unique URLs... Building URL list for BURP scanner... Grab a coffee!"
-uro -i URLs_with_params.txt | while read url; do 
-  response=$(curl -s -o /dev/null -w "%{http_code}" "$url")
-  if [[ "$response" == "200" || "$response" == "302" ]]; then
-    echo "$url" >> BURP_SCAN_URLs_with_params.txt
-  fi
-done
-
+# uro -i URLs_with_params.txt | while read url; do 
+#   response=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+#   if [[ "$response" == "200" || "$response" == "302" ]]; then
+#     echo "$url" >> BURP_SCAN_URLs_with_params.txt
+#   fi
+# done
+uro -i URLs_without_params.txt >> URLs_without_params_uniq.txt
+uro -i URLs_with_params.txt >> URLs_with_params_uniq.txt
+# This outputs two files BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt
+urldedup -f URLs_with_params_uniq.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 -validate -t 20 
 
 #Extract all JS files
-grep '\.js' waymore_URLS.txt >> JS_URL_endpoints.txt
+grep '\.js' collected_URLs.txt >> JS_URL_endpoints.txt
 sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 
 # Active: searching for sensitive information in JS files with jshunter 
@@ -294,9 +308,11 @@ echo "Searching for secrets with jshunter..."
 jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' | grep -v "Failed" >> jshunter_found_secrets.txt
 sort -u "jshunter_found_secrets.txt" -o "jshunter_found_secrets.txt"
 
+x8 -u BURP_GAP_URLs_with_params.txt -w /wordlists/burp-parameter-names.txt --one-worker-per-host -W2 -O url -o BURP_URLs_with_x8_custom_params.txt --remove-empty
+
 # Cleanup
 # Create sub-directories for organization
-mkdir -p subdomains emails urls/artifacts scans httpx
+mkdir -p subdomains emails urls/artifacts urls/burp_scanner scans httpx
 # Move subdomain-related files
 mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>/dev/null
 
@@ -304,12 +320,13 @@ mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>
 mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 
 # Move URL-related files
-mv BURP_SCAN_URLs_with_params.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
-mv waymore_URLS.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
+mv BURP_URLs_with_x8_custom_params.txt BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
+mv URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
+mv collected_URLs.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
 mv smap_results scans/ 2>/dev/null
-mv webservers_ip_domain.txt scans/ 2>/dev/null
+mv ips.txt webservers_ip_domain.txt scans/ 2>/dev/null
 
 # Move active enumeration results
 mv httpx_output.txt httpx/ 2>/dev/null

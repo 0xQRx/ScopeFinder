@@ -23,6 +23,8 @@
      export DEHASHED_API_KEY=your_dehashed_api_key
      export HUNTERIO_API_KEY=your_hunterio_api_key
      export PDCP_API_KEY=your_projectdiscovery_api_key
+     export URLSCAN_API_KEY=your_urlscan_api_key
+     export VIRUSTOTAL_API_KEY=your_virustotal_api_key
      ```
 
 ## Config Files
@@ -51,12 +53,14 @@ docker build -t scopefinder .
 Add the following alias to your shell configuration file (e.g., `~/.bashrc` or `~/.zshrc`):
 ```bash
 alias ScopeFinder='docker run --rm -it \
+  -e URLSCAN_API_KEY="${URLSCAN_API_KEY}" \
+  -e VIRUSTOTAL_API_KEY="${VIRUSTOTAL_API_KEY}" \
   -e SHODAN_API_KEY="${SHODAN_API_KEY}" \
   -e DEHASHED_EMAIL="${DEHASHED_EMAIL}" \
   -e DEHASHED_API_KEY="${DEHASHED_API_KEY}" \
   -e HUNTERIO_API_KEY="${HUNTERIO_API_KEY}" \
   -e PDCP_API_KEY="${PDCP_API_KEY}" \
-  -e PATH="/usr/local/go/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin:/go/bin" \
+  -e PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin:/go/bin" \
   -v "${SCOPEFINDER_PATH}/.config/:/root/.config" \
   -v "$(pwd):/output" \
   scopefinder'
@@ -73,6 +77,8 @@ ScopeFinder example.com
 ```
 
 All results will be saved in the current working directory from where tool was run.
+
+Use the [ActiveScan Kicker](https://github.com/0xQRx/BurpPlugins/tree/master/ActiveScanKicker) Burp Suite extension to perform an audit on a URL prepared for Burp's active scanner.
 
 ## Output example
 
@@ -100,12 +106,15 @@ All results will be saved in the current working directory from where tool was r
 │   └── urls
 │       ├── URLs_with_params.txt
 │       ├── URLs_without_params.txt
+│       ├── URLs_with_params_uniq.txt
+│       ├── URLs_without_params_uniq.txt
 │       ├── artifacts
 │       │   ├── JS_URL_endpoints.txt
 │       │   ├── katana_crawled_URLS.txt
 │       │   └── waymore_URLS.txt
 │       ├── burp_scanner
 │       │   ├── BURP_GAP_URLs_with_params.txt
+│       │   ├── BURP_URLs_with_x8_custom_params.txt
 │       │   └── BURP_URLs_with_params.txt
 │       └── jshunter_found_secrets.txt
 └── STAGE_2

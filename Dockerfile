@@ -13,7 +13,7 @@ RUN apt update && apt install -y \
     libpango1.0-0 libjpeg-dev libxrandr2 pipx dnsutils ca-certificates && \
     apt clean && rm -rf /var/lib/apt/lists/*
 
-# # Install Golang (required for the tools)
+# Install Golang (required for the tools)
 ENV GO_VERSION=1.23.5
 
 # Detect architecture and install the correct Go version
@@ -31,6 +31,9 @@ RUN ARCH=$(uname -m) && \
     tar -C /usr/local -xzf "$GO_TARBALL" && \
     rm "$GO_TARBALL"
 
+# Install Rust
+RUN curl https://sh.rustup.rs -sSf | sh
+
 # Install headless chromium
 RUN wget https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1131003/chrome-linux.zip && \
     mkdir -p /root/.cache/rod/browser/chromium-1131003 && \
@@ -40,11 +43,11 @@ RUN wget https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/113
     rm -rf chrome-linux
 
 # Set Golang environment variables
-ENV PATH="/usr/local/go/bin:/root/.local/bin:$PATH"
+ENV PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:$PATH"
 ENV GOBIN="/root/go/bin"
 ENV PATH="$PATH:$GOBIN"
 
-# Install the required tools using Go and pipx
+# Install the required tools using Go, cargo and pipx 
 RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
     go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest && \
     go install -v github.com/s0md3v/smap/cmd/smap@latest && \
@@ -54,7 +57,14 @@ RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest 
     pipx install git+https://github.com/xnl-h4ck3r/waymore.git && \
     GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@main && \
     GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@main && \
-    pipx install uro
+    GOPRIVATE=github.com/0xQRx/godigger go install -v github.com/0xQRx/godigger@main && \
+    GOPRIVATE=github.com/0xQRx/URLDedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@main && \
+    pipx install uro && \
+    cargo install x8
+
+
+# Download wordlists
+RUN mkdir -p /wordlists && cd /wordlists && wget https://raw.githubusercontent.com/danielmiessler/SecLists/refs/heads/master/Discovery/Web-Content/burp-parameter-names.txt
 
 # Copy the script into the container
 COPY ScopeFinder.sh /opt/ScopeFinder.sh
