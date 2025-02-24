@@ -314,7 +314,7 @@ rm JS_URL_endpoints_temp.txt
 
 # Active: searching for sensitive information in JS files with jshunter 
 echo "Searching for urls in JS files..."
-linkfinder -i JS_URL_endpoints.txt
+linkfinder -i JS_URL_endpoints.txt --out-dir linkfinder_output
 
 echo "Searching for secrets with jshunter..."
 jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' | grep -v "Failed" >> jshunter_found_secrets.txt
