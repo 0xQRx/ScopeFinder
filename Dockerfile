@@ -68,7 +68,7 @@ RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest 
 RUN mkdir -p /wordlists && cd /wordlists && wget https://raw.githubusercontent.com/danielmiessler/SecLists/refs/heads/master/Discovery/Web-Content/burp-parameter-names.txt
 
 # Copy the script into the container
-COPY ScopeFinder.sh /opt/ScopeFinder.sh
+# COPY ScopeFinder.sh /opt/ScopeFinder.sh
 
 # Make the script executable
 RUN chmod +x /opt/ScopeFinder.sh

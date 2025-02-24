@@ -68,6 +68,7 @@ alias ScopeFinder='docker run --rm -it \
   -e PDCP_API_KEY="${PDCP_API_KEY}" \
   -e PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin:/go/bin" \
   -v "${SCOPEFINDER_PATH}/.config/:/root/.config" \
+  -v "${SCOPEFINDER_PATH}/ScopeFinder.sh:/opt/ScopeFinder.sh" \
   -v "$(pwd):/output" \
   scopefinder'
 ```
