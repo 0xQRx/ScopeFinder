@@ -288,7 +288,7 @@ grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).
 echo "Crawling subdomains with katana... it will take some time."
 #katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
 mkdir katana_temp_files
-katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent -sr -srd katana_temp_files > /dev/null 2>&1
+katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -o katana_crawled_URLS.txt -silent -sr -srd katana_temp_files > /dev/null 2>&1
 sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
 
 xnLinkFinder -i ./temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
