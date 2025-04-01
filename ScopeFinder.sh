@@ -322,7 +322,7 @@ mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 mv BURP_URLs_with_x8_custom_params.txt BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
 mv domain_not_known_xnLinkFinder_output.txt linkfinder_output/ 2>/dev/null
 mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
-mv xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
+mv temp_files katana_temp_files xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
 mv smap_results scans/ 2>/dev/null
@@ -331,11 +331,6 @@ mv ips.txt webservers_ip_domain.txt scans/ 2>/dev/null
 # Move active enumeration results
 mv httpx_output.txt httpx/ 2>/dev/null
 mv output httpx/ 2>/dev/null
-
-# Remove not needed artifacts
-rm -rf temp_files
-rm -rf katana_temp_files
-rm output.txt
 
 echo "STAGE 1 is finished. You can start working with the results in ${STAGE1} directory."
 
