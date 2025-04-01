@@ -164,42 +164,6 @@ check_config_warnings() {
 
 check_config_warnings
 
-danger_prank() {
-    echo -e "\e[31m"  # Red color
-
-    cat << "EOF"
-                                                  ______               __ 
-                                                 /      \             /  |
-  ______   _____  ____                  ______  /$$$$$$  |           /$$/ 
- /      \ /     \/    \        ______  /      \ $$ |_ $$/           /$$/  
-/$$$$$$  |$$$$$$ $$$$  |      /      |/$$$$$$  |$$   |             /$$/   
-$$ |  $$/ $$ | $$ | $$ |      $$$$$$/ $$ |  $$/ $$$$/             /$$/    
-$$ |      $$ | $$ | $$ |              $$ |      $$ |             /$$/     
-$$ |      $$ | $$ | $$ |              $$ |      $$ |            /$$/      
-$$/       $$/  $$/  $$/               $$/       $$/             $$/       
-EOF
-
-    echo -e "\n🚨🚨🚨 DANGER! SYSTEM WIPE INITIATED 🚨🚨🚨"
-    echo -e "Deleting all files in:\n"
-
-    # Fake countdown
-    for i in {5..1}; do
-        echo -e "\e[31m $i... \e[0m"
-        sleep 1
-    done
-
-    echo -e "\e[31m rm -rf / is running... \e[0m"
-    sleep 2
-
-    echo -e "\e[32m Just kidding! 😆 Your system is safe. \e[0m"
-    echo -e "\e[32m Enjoy the ride! 🎢❤️ \e[0m \n"
-    sleep 1
-}
-
-# Call the function
-# danger_prank
-
-
 # Handle input (single domain)
 DOMAIN="$1"
 
@@ -293,7 +257,10 @@ sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
 
 xnLinkFinder -i ./temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
 xnLinkFinder -i ./katana_temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
-sed -i '/^http[s]*:\/\//! s|^|https://'"$DOMAIN"'|' xnLinkFinder_output.txt
+
+# Process xnLinkFinder_output.txt
+grep -vE '^https?://' xnLinkFinder_output.txt > domain_not_known_xnLinkFinder_output.txt
+grep -E '^https?://' xnLinkFinder_output.txt > temp_xnLinkFinder_output.txt && mv temp_xnLinkFinder_output.txt xnLinkFinder_output.txt
 sort -u "xnLinkFinder_output.txt" -o "xnLinkFinder_output.txt"
 
 
@@ -353,6 +320,7 @@ mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 
 # Move URL-related files
 mv BURP_URLs_with_x8_custom_params.txt BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
+mv domain_not_known_xnLinkFinder_output.txt linkfinder_output/ 2>/dev/null
 mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
 mv xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
 
