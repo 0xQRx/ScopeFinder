@@ -125,6 +125,7 @@ check_and_install_tools() {
     install_tool "subfinder" "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest > /dev/null"
     install_tool "waymore" "pipx install git+https://github.com/xnl-h4ck3r/waymore.git > /dev/null"
     install_tool "linkfinder" "pipx install git+https://github.com/0xQRx/LinkFinder.git --include-deps > /dev/null"
+    install_tool "xnLinkFinder" "pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git > /dev/null"
     install_tool "httpx" "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest > /dev/null"
     install_tool "katana" "CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest > /dev/null"
     install_tool "smap" "go install -v github.com/s0md3v/smap/cmd/smap@latest > /dev/null"
@@ -196,7 +197,7 @@ EOF
 }
 
 # Call the function
-danger_prank
+# danger_prank
 
 
 # Handle input (single domain)
@@ -264,9 +265,10 @@ sort -u "leaked_credential_pairs.txt" -o "leaked_credential_pairs.txt"
 echo "Finished email and credential search..."
 
 # Passive: URL finder
-echo "Running URL finder with waymore and godigger - might take a while..."
-waymore -i "$DOMAIN" -mode U -f -oU "collected_URLs.txt" > /dev/null 2>&1
-godigger -domain "$DOMAIN" -search urls -t 20 >> collected_URLs.txt
+echo "Running URL finder and downloading archived URLs with waymore - it will take a while..."
+#waymore -i "$DOMAIN" -mode U -f -oU "collected_URLs.txt" > /dev/null 2>&1
+mkdir temp_files
+waymore -i "$DOMAIN" -mode B -f -oU "collected_URLs.txt" -url-filename -oR temp_files > /dev/null 2>&1
 sort -u "collected_URLs.txt" -o "collected_URLs.txt"
 
 # Passive: Port scanning with smap
@@ -284,18 +286,28 @@ httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "htt
 grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).*|\1|' | awk '{print $1}' >> subdomains_to_crawl.txt
 
 echo "Crawling subdomains with katana... it will take some time."
-katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
+#katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
+mkdir katana_temp_files
+katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent -sr -srd katana_temp_files > /dev/null 2>&1
 sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
+
+xnLinkFinder -i ./temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
+xnLinkFinder -i ./katana_temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
+sed -i '/^http[s]*:\/\//! s|^|https://'"$DOMAIN"'|' xnLinkFinder_output.txt
+sort -u "xnLinkFinder_output.txt" -o "xnLinkFinder_output.txt"
+
 
 # Sort URLs, separate with and without parameters
 # Extract all URLs with parameters
-grep -oP 'https?://[^\s"]+\?[^\s"]*' katana_crawled_URLS.txt >> URLs_with_params.txt
-grep -oP 'https?://[^\s"]+\?[^\s"]*' collected_URLs.txt >> URLs_with_params.txt
+grep -oP 'https?://[^\s"]+\?[^\s"]*' xnLinkFinder_output.txt katana_crawled_URLS.txt collected_URLs.txt >> URLs_with_params.txt
+# grep -oP 'https?://[^\s"]+\?[^\s"]*' katana_crawled_URLS.txt >> URLs_with_params.txt
+# grep -oP 'https?://[^\s"]+\?[^\s"]*' collected_URLs.txt >> URLs_with_params.txt
 sort -u "URLs_with_params.txt" -o "URLs_with_params.txt"
 
 # Extract all URLs without parameters
-grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_without_params.txt
-grep -oP 'https?://[^\s"]+' collected_URLs.txt | grep -v '\?' >> URLs_without_params.txt
+grep -oP 'https?://[^\s"]+' xnLinkFinder_output.txt katana_crawled_URLS.txt collected_URLs.txt | grep -v '\?' >> URLs_without_params.txt
+# grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_without_params.txt
+# grep -oP 'https?://[^\s"]+' collected_URLs.txt | grep -v '\?' >> URLs_without_params.txt
 sort -u "URLs_without_params.txt" -o "URLs_without_params.txt"
 
 # Prep unique and live URLs for Burp Scanner
@@ -306,8 +318,9 @@ uro -i URLs_with_params.txt >> URLs_with_params_uniq.txt
 urldedup -f URLs_with_params_uniq.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 -validate -t 20 -out-burp BURP_URLs_with_params.txt -out-burp-gap BURP_GAP_URLs_with_params.txt
 
 #Extract all JS files
-grep -E '\.js(\?.*)?$' collected_URLs.txt >> JS_URL_endpoints_temp.txt
-grep -E '\.js(\?.*)?$' katana_crawled_URLS.txt >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' xnLinkFinder_output.txt collected_URLs.txt katana_crawled_URLS.txt >> JS_URL_endpoints_temp.txt
+# grep -E '\.js(\?.*)?$' collected_URLs.txt >> JS_URL_endpoints_temp.txt
+# grep -E '\.js(\?.*)?$' katana_crawled_URLS.txt >> JS_URL_endpoints_temp.txt
 uro -i JS_URL_endpoints_temp.txt > JS_URL_endpoints.txt
 sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 rm JS_URL_endpoints_temp.txt
@@ -317,7 +330,11 @@ echo "Searching for urls in JS files..."
 linkfinder -i JS_URL_endpoints.txt --out-dir linkfinder_output
 
 echo "Searching for secrets with jshunter..."
-jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' | grep -v "Failed" >> jshunter_found_secrets.txt
+# jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' | grep -v "Failed" >> jshunter_found_secrets.txt
+jshunter -d temp_files --recursive -quiet -o jshunter_found_secrets_1.txt 
+jshunter -d katana_temp_files --recursive -quiet -o jshunter_found_secrets_2.txt 
+cat jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt > jshunter_found_secrets.txt
+rm jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt 
 sort -u "jshunter_found_secrets.txt" -o "jshunter_found_secrets.txt"
 
 echo "Searching for hidden parameters with x8..."
@@ -337,7 +354,7 @@ mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 # Move URL-related files
 mv BURP_URLs_with_x8_custom_params.txt BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
 mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
-mv katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
+mv xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
 mv smap_results scans/ 2>/dev/null
@@ -346,6 +363,10 @@ mv ips.txt webservers_ip_domain.txt scans/ 2>/dev/null
 # Move active enumeration results
 mv httpx_output.txt httpx/ 2>/dev/null
 mv output httpx/ 2>/dev/null
+
+# Remove not needed artifacts
+rm -rf temp_files
+rm -rf katana_temp_files
 rm output.txt
 
 echo "STAGE 1 is finished. You can start working with the results in ${STAGE1} directory."
