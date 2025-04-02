@@ -73,7 +73,6 @@ alias ScopeFinder='docker run --rm -it \
   scopefinder'
 ```
 
-## Usage
 Reload your shell configuration:
 
 ```bash
@@ -81,16 +80,51 @@ source ~/.zshrc
 # or
 source ~/.bashrc
 ```
+
+### Usage
+
 Run the tool with the alias:
 ```bash
 ScopeFinder example.com
 ```
 
+## Running Individual Tools from the Container
+
+To run an individual tool from the container, define the following function in your shell (e.g., in your .bashrc or .zshrc):
+
+```
+sf-run() {
+  docker run --rm -it \
+    --entrypoint "" \
+    -e URLSCAN_API_KEY="${URLSCAN_API_KEY}" \
+    -e VIRUSTOTAL_API_KEY="${VIRUSTOTAL_API_KEY}" \
+    -e SHODAN_API_KEY="${SHODAN_API_KEY}" \
+    -e DEHASHED_EMAIL="${DEHASHED_EMAIL}" \
+    -e DEHASHED_API_KEY="${DEHASHED_API_KEY}" \
+    -e HUNTERIO_API_KEY="${HUNTERIO_API_KEY}" \
+    -e PDCP_API_KEY="${PDCP_API_KEY}" \
+    -e PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin:/go/bin" \
+    -v "${SCOPEFINDER_PATH}/.config/:/root/.config" \
+    -v "${SCOPEFINDER_PATH}/ScopeFinder.sh:/opt/ScopeFinder.sh" \
+    -v "$(pwd):/output" \
+    scopefinder "$@"
+}
+```
+
+You can then run tools from the container like this:
+
+```
+sf-run subfinder -d example.com
+sf-run trufflehog filesystem /output/target
+sf-run katana -u https://example.com
+sf-run bash          # Drop into an interactive shell
+```
+
+## Output example
+
 All results will be saved in the current working directory from where tool was run.
 
 Use the [ActiveScan Kicker](https://github.com/0xQRx/BurpPlugins/tree/master/ActiveScanKicker) Burp Suite extension to perform an audit on a URL prepared for Burp's active scanner.
-
-## Output example
 
 ```
 ├── STAGE_1
