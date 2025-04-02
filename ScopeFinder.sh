@@ -138,6 +138,7 @@ check_and_install_tools() {
     install_tool "urldedup" "GOPRIVATE=github.com/0xQRx/URLDedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@main > /dev/null"
     install_tool "uro" "pipx install uro > /dev/null"
     install_tool "x8" "cargo install x8 > /dev/null"
+    install_tool "trufflehog" "git clone https://github.com/trufflesecurity/trufflehog.git > /dev/null && cd trufflehog && go install > /dev/null && cd .. && rm -rf trufflehog"
     echo "All tools checked."
 }
 
@@ -266,15 +267,15 @@ sort -u "xnLinkFinder_output.txt" -o "xnLinkFinder_output.txt"
 
 # Sort URLs, separate with and without parameters
 # Extract all URLs with parameters
-grep -oP 'https?://[^\s"]+\?[^\s"]*' xnLinkFinder_output.txt katana_crawled_URLS.txt collected_URLs.txt >> URLs_with_params.txt
-# grep -oP 'https?://[^\s"]+\?[^\s"]*' katana_crawled_URLS.txt >> URLs_with_params.txt
-# grep -oP 'https?://[^\s"]+\?[^\s"]*' collected_URLs.txt >> URLs_with_params.txt
+grep -oP 'https?://[^\s"]+\?[^\s"]*' xnLinkFinder_output.txt >> URLs_with_params.txt
+grep -oP 'https?://[^\s"]+\?[^\s"]*' katana_crawled_URLS.txt >> URLs_with_params.txt
+grep -oP 'https?://[^\s"]+\?[^\s"]*' collected_URLs.txt >> URLs_with_params.txt
 sort -u "URLs_with_params.txt" -o "URLs_with_params.txt"
 
 # Extract all URLs without parameters
-grep -oP 'https?://[^\s"]+' xnLinkFinder_output.txt katana_crawled_URLS.txt collected_URLs.txt | grep -v '\?' >> URLs_without_params.txt
-# grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_without_params.txt
-# grep -oP 'https?://[^\s"]+' collected_URLs.txt | grep -v '\?' >> URLs_without_params.txt
+grep -oP 'https?://[^\s"]+' xnLinkFinder_output.txt | grep -v '\?' >> URLs_without_params.txt
+grep -oP 'https?://[^\s"]+' katana_crawled_URLS.txt | grep -v '\?' >> URLs_without_params.txt
+grep -oP 'https?://[^\s"]+' collected_URLs.txt | grep -v '\?' >> URLs_without_params.txt
 sort -u "URLs_without_params.txt" -o "URLs_without_params.txt"
 
 # Prep unique and live URLs for Burp Scanner
@@ -285,24 +286,30 @@ uro -i URLs_with_params.txt >> URLs_with_params_uniq.txt
 urldedup -f URLs_with_params_uniq.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 -validate -t 20 -out-burp BURP_URLs_with_params.txt -out-burp-gap BURP_GAP_URLs_with_params.txt
 
 #Extract all JS files
-grep -E '\.js(\?.*)?$' xnLinkFinder_output.txt collected_URLs.txt katana_crawled_URLS.txt >> JS_URL_endpoints_temp.txt
-# grep -E '\.js(\?.*)?$' collected_URLs.txt >> JS_URL_endpoints_temp.txt
-# grep -E '\.js(\?.*)?$' katana_crawled_URLS.txt >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' xnLinkFinder_output.txt >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' collected_URLs.txt >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' katana_crawled_URLS.txt >> JS_URL_endpoints_temp.txt
 uro -i JS_URL_endpoints_temp.txt > JS_URL_endpoints.txt
 sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 rm JS_URL_endpoints_temp.txt
 
 # Active: searching for sensitive information in JS files with jshunter 
 echo "Searching for urls in JS files..."
+mkdir linkfinder_output
 linkfinder -i JS_URL_endpoints.txt --out-dir linkfinder_output
 
 echo "Searching for secrets with jshunter..."
-# jshunter -l JS_URL_endpoints.txt -quiet | grep -v 'MISSING' | grep -v "Failed" >> jshunter_found_secrets.txt
-jshunter -d temp_files --recursive -quiet -o jshunter_found_secrets_1.txt 
-jshunter -d katana_temp_files --recursive -quiet -o jshunter_found_secrets_2.txt 
-cat jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt > jshunter_found_secrets.txt
+jshunter -l JS_URL_endpoints.txt -quiet -o jshunter_found_secrets_1.txt 
+jshunter -d temp_files --recursive -quiet -o jshunter_found_secrets_2.txt 
+jshunter -d katana_temp_files --recursive -quiet -o jshunter_found_secrets_3.txt 
+cat jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt > jshunter_found_secrets.txt
 rm jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt 
 sort -u "jshunter_found_secrets.txt" -o "jshunter_found_secrets.txt"
+
+echo "Searching for secrets with trufflehog..."
+trufflehog filesystem --log-level=0 temp_files >> trufflehog_secrets.txt 2>&1
+trufflehog filesystem --log-level=0 katana_temp_files >> trufflehog_secrets.txt 2>&1
+sort -u "trufflehog_secrets.txt" -o "trufflehog_secrets.txt"
 
 echo "Searching for hidden parameters with x8..."
 cat BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt > FUZZ_Params_URLs.txt
@@ -321,7 +328,7 @@ mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 # Move URL-related files
 mv BURP_URLs_with_x8_custom_params.txt BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
 mv domain_not_known_xnLinkFinder_output.txt linkfinder_output/ 2>/dev/null
-mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt urls/ 2>/dev/null
+mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt trufflehog_secrets.txt urls/ 2>/dev/null
 mv temp_files katana_temp_files xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
