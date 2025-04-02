@@ -23,6 +23,7 @@ usage() {
     echo " - PDCP_API_KEY"
     echo " - URLSCAN_API_KEY"
     echo " - VIRUSTOTAL_API_KEY"
+    echo " - WPSCAN_API_KEY"
     echo
     echo "Options:"
     echo " -h, --help       Show this help and exit"
@@ -63,6 +64,7 @@ check_env_var "HUNTERIO_API_KEY"
 check_env_var "PDCP_API_KEY"
 check_env_var "URLSCAN_API_KEY"
 check_env_var "VIRUSTOTAL_API_KEY"
+check_env_var "WPSCAN_API_KEY"
 
 echo "All required environment variables are set."
 
@@ -139,6 +141,7 @@ check_and_install_tools() {
     install_tool "urldedup" "GOPRIVATE=github.com/0xQRx/URLDedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@main > /dev/null"
     install_tool "uro" "pipx install uro > /dev/null"
     install_tool "x8" "cargo install x8 > /dev/null"
+    install_tool "wpscan" "gem install wpscan > /dev/null"
     install_tool "trufflehog" "git clone https://github.com/trufflesecurity/trufflehog.git > /dev/null && cd trufflehog && go install > /dev/null && cd .. && rm -rf trufflehog"
     echo "All tools checked."
 }
@@ -232,8 +235,7 @@ sort -u "leaked_credential_pairs.txt" -o "leaked_credential_pairs.txt"
 echo "Finished email and credential search..."
 
 # Passive: URL finder
-echo "Running URL finder and downloading archived URLs with waymore - it will take a while..."
-#waymore -i "$DOMAIN" -mode U -f -oU "collected_URLs.txt" > /dev/null 2>&1
+echo "Running URL finder and downloading archived URLs with waymore - it might take several hours..."
 mkdir temp_files
 waymore -i "$DOMAIN" -mode B -f -oU "collected_URLs.txt" -url-filename -oR temp_files > /dev/null 2>&1
 sort -u "collected_URLs.txt" -o "collected_URLs.txt"
@@ -252,12 +254,35 @@ httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "htt
 # Extract good codes from httpx output file
 grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).*|\1|' | awk '{print $1}' >> subdomains_to_crawl.txt
 
+# Extract WordPress sites from httpx output
+grep -iE '\[.*wordpress.*\]' httpx_output.txt | awk '{print $1}' > wordpress_sites.txt
+sort -u "wordpress_sites.txt" -o "wordpress_sites.txt"
+
+mkdir -p wpscan
+# Check if there are any WordPress sites to scan
+if [ -s wordpress_sites.txt ]; then
+    echo "Scanning WordPress sites with WPScan..."
+
+    while read -r SUBDOMAIN; do
+        OUTPUT_FILE="wpscan/wpscan_$(echo "$SUBDOMAIN" | sed 's|https\?://||g; s|/|_|g').txt"
+        wpscan -t 1 --api-token="$WPSCAN_API_KEY" --enumerate --throttle 300 -o "$OUTPUT_FILE" -f cli-no-color --user-agent 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:136.0) Gecko/20100101 Firefox/136.0' --disable-tls-checks --update --url "$SUBDOMAIN"
+    done < wordpress_sites.txt
+else
+    rm wordpress_sites.txt
+    rm -rf wpscan
+    echo "No WordPress sites found. Skipping WPScan."
+fi
+
+mv wordpress_sites.txt wpscan/ 2>/dev/null
+
+# Crawling with katana
 echo "Crawling subdomains with katana... it will take some time."
-#katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -headless -no-sandbox -o katana_crawled_URLS.txt -silent > /dev/null 2>&1
 mkdir katana_temp_files
-katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 1 -c 10 -p 2 -rl 10 -rlm 120 -o katana_crawled_URLS.txt -silent -sr -srd katana_temp_files -ef png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf,css > /dev/null 2>&1
+katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 2 -c 10 -p 2 -rl 10 -rlm 120 -timeout 5 -retry 2 -o katana_crawled_URLS.txt -silent -sr -srd katana_temp_files -ef png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf,css > /dev/null 2>&1
 sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
 
+# Searching links with xnLinkFinder
+echo "Searching for urls in archives using xnLinkFinder..."
 xnLinkFinder -i ./temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
 xnLinkFinder -i ./katana_temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
 
@@ -296,7 +321,7 @@ sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 rm JS_URL_endpoints_temp.txt
 
 # Active: searching for sensitive information in JS files with jshunter 
-echo "Searching for urls in JS files..."
+echo "Searching for urls in JS files using linkfinder..."
 mkdir linkfinder_output
 linkfinder -i JS_URL_endpoints.txt --out-dir linkfinder_output
 
@@ -320,7 +345,7 @@ rm FUZZ_Params_URLs.txt
 
 echo "Performing cloud recon..."
 mkdir cloud
-msftrecon -d "$DOMAIN" >> cloud/msftrecon.txt
+msftrecon -d "$DOMAIN" >> cloud/msftrecon.txt 2>/dev/null
 
 SNI_URLS=(                         
   "https://kaeferjaeger.gay/sni-ip-ranges/amazon/ipv4_merged_sni.txt"

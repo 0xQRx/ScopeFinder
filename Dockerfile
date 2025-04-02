@@ -6,10 +6,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Update and install necessary packages
 RUN apt update && apt install -y \
-    jq wget curl unzip gcc git make xdg-utils pkg-config libssl-dev \
+    jq wget curl unzip gcc ruby git make xdg-utils pkg-config libssl-dev \
     libnss3 libxss1 libatk1.0-0 libatk-bridge2.0-0 libdrm2 libx11-xcb1 \
     libxcomposite1 libxcursor1 libxdamage1 libxi6 libxtst6 libasound2 \
-    libpangocairo-1.0-0 libcups2 libxkbcommon0 fonts-liberation libgbm-dev \
+    libpangocairo-1.0-0 libcups2 libxkbcommon0 fonts-liberation libgbm-dev build-essential libcurl4-openssl-dev libxml2 libxml2-dev libxslt1-dev ruby-dev  libgmp-dev zlib1g-dev \
     libpango1.0-0 libjpeg-dev libxrandr2 pipx dnsutils ca-certificates && \
     apt clean && rm -rf /var/lib/apt/lists/*
 
@@ -69,6 +69,7 @@ RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest 
     GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@main && \
     GOPRIVATE=github.com/0xQRx/godigger go install -v github.com/0xQRx/godigger@main && \
     GOPRIVATE=github.com/0xQRx/URLDedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@main && \
+    gem install wpscan && \
     pipx install uro && \
     cargo install x8
 

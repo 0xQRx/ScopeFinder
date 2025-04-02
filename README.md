@@ -55,6 +55,8 @@ export HUNTERIO_API_KEY=your_hunterio_api_key
 export PDCP_API_KEY=your_projectdiscovery_api_key
 export URLSCAN_API_KEY=your_urlscan_api_key
 export VIRUSTOTAL_API_KEY=your_virustotal_api_key
+export WPSCAN_API_KEY=your_wpscan_api_key
+
 
 export SCOPEFINDER_PATH=/path/to/scopefinder/folder
 
@@ -66,6 +68,7 @@ alias ScopeFinder='docker run --rm -it \
   -e DEHASHED_API_KEY="${DEHASHED_API_KEY}" \
   -e HUNTERIO_API_KEY="${HUNTERIO_API_KEY}" \
   -e PDCP_API_KEY="${PDCP_API_KEY}" \
+  -e WPSCAN_API_KEY="${WPSCAN_API_KEY}" \
   -e PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin:/go/bin" \
   -v "${SCOPEFINDER_PATH}/.config/:/root/.config" \
   -v "${SCOPEFINDER_PATH}/ScopeFinder.sh:/opt/ScopeFinder.sh" \
@@ -103,6 +106,7 @@ sf-run() {
     -e DEHASHED_API_KEY="${DEHASHED_API_KEY}" \
     -e HUNTERIO_API_KEY="${HUNTERIO_API_KEY}" \
     -e PDCP_API_KEY="${PDCP_API_KEY}" \
+    -e WPSCAN_API_KEY="${WPSCAN_API_KEY}" \
     -e PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin:/go/bin" \
     -v "${SCOPEFINDER_PATH}/.config/:/root/.config" \
     -v "${SCOPEFINDER_PATH}/ScopeFinder.sh:/opt/ScopeFinder.sh" \
