@@ -95,7 +95,7 @@ ScopeFinder example.com
 
 To run an individual tool from the container, define the following function in your shell (e.g., in your .bashrc or .zshrc):
 
-```
+```bash
 sf-run() {
   docker run --rm -it \
     --entrypoint "" \
@@ -117,7 +117,7 @@ sf-run() {
 
 You can then run tools from the container like this:
 
-```
+```bash
 sf-run subfinder -d example.com
 sf-run trufflehog filesystem /output/target
 sf-run katana -u https://example.com
