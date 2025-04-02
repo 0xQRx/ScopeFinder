@@ -124,6 +124,7 @@ check_and_install_tools() {
 
     install_tool "subfinder" "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest > /dev/null"
     install_tool "waymore" "pipx install git+https://github.com/xnl-h4ck3r/waymore.git > /dev/null"
+    install_tool "msftrecon" "pipx install git+https://github.com/Arcanum-Sec/msftrecon > /dev/null"
     install_tool "linkfinder" "pipx install git+https://github.com/0xQRx/LinkFinder.git --include-deps > /dev/null"
     install_tool "xnLinkFinder" "pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git > /dev/null"
     install_tool "httpx" "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest > /dev/null"
@@ -167,6 +168,7 @@ check_config_warnings
 
 # Handle input (single domain)
 DOMAIN="$1"
+DOMAIN_BASE_NAME=$(echo "$DOMAIN" | awk -F'.' '{print $(NF-1)}')
 
 STAGE1="STAGE_1"
 STAGE2="STAGE_2"
@@ -303,18 +305,35 @@ jshunter -l JS_URL_endpoints.txt -quiet -o jshunter_found_secrets_1.txt
 jshunter -d temp_files --recursive -quiet -o jshunter_found_secrets_2.txt 
 jshunter -d katana_temp_files --recursive -quiet -o jshunter_found_secrets_3.txt 
 cat jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt > jshunter_found_secrets.txt
-rm jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt 
+rm jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt
 sort -u "jshunter_found_secrets.txt" -o "jshunter_found_secrets.txt"
 
 echo "Searching for secrets with trufflehog..."
-trufflehog filesystem --log-level=0 temp_files >> trufflehog_secrets.txt 2>&1
-trufflehog filesystem --log-level=0 katana_temp_files >> trufflehog_secrets.txt 2>&1
+trufflehog filesystem --log-level='-1' temp_files >> trufflehog_secrets.txt 2>&1
+trufflehog filesystem --log-level='-1' katana_temp_files >> trufflehog_secrets.txt 2>&1
 sort -u "trufflehog_secrets.txt" -o "trufflehog_secrets.txt"
 
 echo "Searching for hidden parameters with x8..."
 cat BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt > FUZZ_Params_URLs.txt
 x8 -u FUZZ_Params_URLs.txt -w /wordlists/burp-parameter-names.txt --one-worker-per-host -W2 -O url -o BURP_URLs_with_x8_custom_params.txt --remove-empty > /dev/null 2>&1
 rm FUZZ_Params_URLs.txt
+
+echo "Performing cloud recon..."
+mkdir cloud
+msftrecon -d "$DOMAIN" >> cloud/msftrecon.txt
+
+SNI_URLS=(                         
+  "https://kaeferjaeger.gay/sni-ip-ranges/amazon/ipv4_merged_sni.txt"
+  "https://kaeferjaeger.gay/sni-ip-ranges/digitalocean/ipv4_merged_sni.txt"
+  "https://kaeferjaeger.gay/sni-ip-ranges/google/ipv4_merged_sni.txt"
+  "https://kaeferjaeger.gay/sni-ip-ranges/microsoft/ipv4_merged_sni.txt"
+  "https://kaeferjaeger.gay/sni-ip-ranges/oracle/ipv4_merged_sni.txt"
+)
+
+for url in "${SNI_URLS[@]}"; do
+  curl -s "$url" | grep -iE "$DOMAIN|$DOMAIN_BASE_NAME" >> cloud/domain_from_cloud_sni.txt
+done
+
 
 # Cleanup
 # Create sub-directories for organization
@@ -348,11 +367,9 @@ cd "$STAGE2" || exit
 
 echo "Running STAGE 2. Searching and scanning ASN ranges... Once it's done, you can start working with the results in ${STAGE2} directory."
 
-BASE_NAME=$(echo "$DOMAIN" | awk -F'.' '{print $(NF-1)}')
-
 # Run asnmap to obtain ASN ranges if there is any.
 echo "Running ASN search with asnmap..."
-asnmap -d $BASE_NAME -silent >> asn_ip_ranges.txt
+asnmap -d $DOMAIN_BASE_NAME -silent >> asn_ip_ranges.txt
 
 if [ ! -s asn_ip_ranges.txt ]; then
   echo "No ASN ranges found. STAGE 2 abort."
