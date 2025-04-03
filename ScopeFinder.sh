@@ -373,7 +373,7 @@ mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 # Move URL-related files
 mv BURP_URLs_with_x8_custom_params.txt BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
 mv domain_not_known_xnLinkFinder_output.txt linkfinder_output/ 2>/dev/null
-mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt trufflehog_secrets.txt urls/ 2>/dev/null
+mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt urls/ 2>/dev/null
 mv jshunter_found_secrets.txt trufflehog_secrets.txt secrets/ 2>/dev/null
 mv downloaded_js_files temp_files katana_temp_files xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt urls/artifacts/ 2>/dev/null
 

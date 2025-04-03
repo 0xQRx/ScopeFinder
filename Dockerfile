@@ -47,7 +47,7 @@ ENV PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:$PATH"
 ENV GOBIN="/root/go/bin"
 ENV PATH="$PATH:$GOBIN"
 
-# Install the required tools using Go, cargo and pipx 
+
 # RUN git clone https://github.com/trufflesecurity/trufflehog.git && \
 #     cd trufflehog && \
 #     go install && \
@@ -70,6 +70,7 @@ RUN ARCH=$(uname -m) && \
     chmod +x /usr/local/bin/trufflehog && \
     rm "$FILENAME"
 
+# Install the required tools using Go, cargo and pipx 
 RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
     go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest && \
     go install -v github.com/s0md3v/smap/cmd/smap@latest && \
