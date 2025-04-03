@@ -48,11 +48,27 @@ ENV GOBIN="/root/go/bin"
 ENV PATH="$PATH:$GOBIN"
 
 # Install the required tools using Go, cargo and pipx 
-RUN git clone https://github.com/trufflesecurity/trufflehog.git && \
-    cd trufflehog && \
-    go install && \
-    cd .. && \
-    rm -rf trufflehog
+# RUN git clone https://github.com/trufflesecurity/trufflehog.git && \
+#     cd trufflehog && \
+#     go install && \
+#     cd .. && \
+#     rm -rf trufflehog
+
+# Download and install TruffleHog prebuilt binary
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; \
+    elif [ "$ARCH" = "aarch64" ]; then ARCH="arm64"; \
+    else echo "Unsupported architecture: $ARCH"; exit 1; fi && \
+    \
+    VERSION="3.88.20" && \
+    FILENAME="trufflehog_${VERSION}_linux_${ARCH}.tar.gz" && \
+    URL="https://github.com/trufflesecurity/trufflehog/releases/download/v${VERSION}/${FILENAME}" && \
+    \
+    wget "$URL" && \
+    tar -xzf "$FILENAME" && \
+    mv trufflehog /usr/local/bin/trufflehog && \
+    chmod +x /usr/local/bin/trufflehog && \
+    rm "$FILENAME"
 
 RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
     go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest && \
