@@ -326,7 +326,7 @@ cat JS_URL_endpoints.txt | xargs -P10 -I{} bash -c 'safe_name=$(echo "{}" | sed 
 echo "Searching for urls in JS files using xnLinkFinder..."
 mkdir linkfinder_output
 #linkfinder -i JS_URL_endpoints.txt --out-dir linkfinder_output
-xnLinkFinder -i ./downloaded_js_files -sp "$DOMAIN" -sf "$DOMAIN" -o linkfinder_output/xnLinkFinder_output_1.txt -op linkfinder_output/xnLinkFinder_parameters.txt -oo linkfinder_output/xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
+xnLinkFinder -i ./downloaded_js_files -sp "$DOMAIN" -sf "$DOMAIN" -o linkfinder_output/xnLinkFinder_output.txt -op linkfinder_output/xnLinkFinder_parameters.txt -oo linkfinder_output/xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
 
 echo "Searching for secrets with jshunter..."
 jshunter -d downloaded_js_files --recursive -quiet -o jshunter_found_secrets_1.txt 
