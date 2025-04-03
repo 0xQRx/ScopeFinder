@@ -126,7 +126,7 @@ check_and_install_tools() {
 
     install_tool "subfinder" "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest > /dev/null"
     install_tool "waymore" "pipx install git+https://github.com/xnl-h4ck3r/waymore.git > /dev/null"
-    install_tool "msftrecon" "pipx install git+https://github.com/Arcanum-Sec/msftrecon > /dev/null"
+    install_tool "msftrecon" "pipx install git+https://github.com/0xQRx/msftrecon.git > /dev/null"
     install_tool "linkfinder" "pipx install git+https://github.com/0xQRx/LinkFinder.git --include-deps > /dev/null"
     install_tool "xnLinkFinder" "pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git > /dev/null"
     install_tool "httpx" "go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest > /dev/null"
@@ -325,7 +325,7 @@ cat JS_URL_endpoints.txt | xargs -P10 -I{} bash -c 'safe_name=$(echo "{}" | sed 
 # Active: searching for sensitive information in JS files with jshunter 
 echo "Searching for urls in JS files using xnLinkFinder..."
 mkdir linkfinder_output
-#linkfinder -i JS_URL_endpoints.txt --out-dir linkfinder_output
+linkfinder -i JS_URL_endpoints.txt --out-dir linkfinder_output
 xnLinkFinder -i ./downloaded_js_files -sp "$DOMAIN" -sf "$DOMAIN" -o linkfinder_output/xnLinkFinder_output.txt -op linkfinder_output/xnLinkFinder_parameters.txt -oo linkfinder_output/xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
 
 echo "Searching for secrets with jshunter..."
@@ -363,7 +363,7 @@ done
 
 # Cleanup
 # Create sub-directories for organization
-mkdir -p subdomains emails urls/artifacts urls/burp_scanner scans httpx
+mkdir -p subdomains emails urls/artifacts urls/burp_scanner scans httpx secrets
 # Move subdomain-related files
 mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>/dev/null
 
@@ -374,6 +374,7 @@ mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 mv BURP_URLs_with_x8_custom_params.txt BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
 mv domain_not_known_xnLinkFinder_output.txt linkfinder_output/ 2>/dev/null
 mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt trufflehog_secrets.txt urls/ 2>/dev/null
+mv jshunter_found_secrets.txt trufflehog_secrets.txt secrets/ 2>/dev/null
 mv downloaded_js_files temp_files katana_temp_files xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results

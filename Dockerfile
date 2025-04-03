@@ -64,7 +64,7 @@ RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest 
     pipx install git+https://github.com/xnl-h4ck3r/waymore.git && \
     pipx install git+https://github.com/0xQRx/LinkFinder.git --include-deps && \
     pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git && \ 
-    pipx install git+https://github.com/Arcanum-Sec/msftrecon && \ 
+    pipx install git+https://github.com/0xQRx/msftrecon.git && \ 
     GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@main && \
     GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@main && \
     GOPRIVATE=github.com/0xQRx/godigger go install -v github.com/0xQRx/godigger@main && \
