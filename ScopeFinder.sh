@@ -286,8 +286,8 @@ xnLinkFinder -i ./temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.
 xnLinkFinder -i ./katana_temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
 
 # Process xnLinkFinder_output.txt
-grep -vE '^https?://' xnLinkFinder_output.txt > domain_not_known_xnLinkFinder_output.txt
-grep -E '^https?://' xnLinkFinder_output.txt > temp_xnLinkFinder_output.txt && mv temp_xnLinkFinder_output.txt xnLinkFinder_output.txt
+grep -vE '^https?://' xnLinkFinder_output.txt >> domain_not_known_xnLinkFinder_output.txt
+grep -E '^https?://' xnLinkFinder_output.txt >> temp_xnLinkFinder_output.txt && mv temp_xnLinkFinder_output.txt xnLinkFinder_output.txt
 sort -u "xnLinkFinder_output.txt" -o "xnLinkFinder_output.txt"
 
 
@@ -319,23 +319,25 @@ uro -i JS_URL_endpoints_temp.txt > JS_URL_endpoints.txt
 sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 rm JS_URL_endpoints_temp.txt
 
+mkdir -p downloaded_js_files
+cat JS_URL_endpoints.txt | xargs -P10 -I{} bash -c 'safe_name=$(echo "{}" | sed "s|https\?://||; s|[^a-zA-Z0-9]|_|g"); wget -q --no-check-certificate --retry-connrefused --wait=1 --random-wait --timeout=5 --tries=2 -O downloaded_js_files/${safe_name}.js "{}"'
+
 # Active: searching for sensitive information in JS files with jshunter 
-echo "Searching for urls in JS files using linkfinder..."
+echo "Searching for urls in JS files using xnLinkFinder..."
 mkdir linkfinder_output
-linkfinder -i JS_URL_endpoints.txt --out-dir linkfinder_output
+#linkfinder -i JS_URL_endpoints.txt --out-dir linkfinder_output
+xnLinkFinder -i ./downloaded_js_files -sp "$DOMAIN" -sf "$DOMAIN" -o linkfinder_output/xnLinkFinder_output_1.txt -op linkfinder_output/xnLinkFinder_parameters.txt -oo linkfinder_output/xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
 
 echo "Searching for secrets with jshunter..."
-jshunter -l JS_URL_endpoints.txt -quiet -o jshunter_found_secrets_1.txt 
+jshunter -d downloaded_js_files --recursive -quiet -o jshunter_found_secrets_1.txt 
 jshunter -d temp_files --recursive -quiet -o jshunter_found_secrets_2.txt 
 jshunter -d katana_temp_files --recursive -quiet -o jshunter_found_secrets_3.txt 
 cat jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt > jshunter_found_secrets.txt
-rm jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt
-sort -u "jshunter_found_secrets.txt" -o "jshunter_found_secrets.txt"
 
 echo "Searching for secrets with trufflehog..."
 trufflehog filesystem --log-level='-1' temp_files >> trufflehog_secrets.txt 2>&1
 trufflehog filesystem --log-level='-1' katana_temp_files >> trufflehog_secrets.txt 2>&1
-sort -u "trufflehog_secrets.txt" -o "trufflehog_secrets.txt"
+trufflehog filesystem --log-level='-1' downloaded_js_files >> trufflehog_secrets.txt 2>&1
 
 echo "Searching for hidden parameters with x8..."
 cat BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt > FUZZ_Params_URLs.txt
@@ -372,7 +374,7 @@ mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 mv BURP_URLs_with_x8_custom_params.txt BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
 mv domain_not_known_xnLinkFinder_output.txt linkfinder_output/ 2>/dev/null
 mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt jshunter_found_secrets.txt trufflehog_secrets.txt urls/ 2>/dev/null
-mv temp_files katana_temp_files xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt urls/artifacts/ 2>/dev/null
+mv downloaded_js_files temp_files katana_temp_files xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
 mv smap_results scans/ 2>/dev/null
