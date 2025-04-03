@@ -255,7 +255,7 @@ httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "htt
 grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).*|\1|' | awk '{print $1}' >> subdomains_to_crawl.txt
 
 # Extract WordPress sites from httpx output
-grep -iE '\[.*wordpress.*\]' httpx_output.txt | awk '{print $1}' > wordpress_sites.txt
+grep -iE '\[.*wordpress.*\]' httpx_output.txt | awk '{print $1}' | sed -E 's#https?://##; s/^.*@//; s/^www\.//' | awk -F/ '{print $1}' > wordpress_sites.txt
 sort -u "wordpress_sites.txt" -o "wordpress_sites.txt"
 
 mkdir -p wpscan
