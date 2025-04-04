@@ -167,7 +167,7 @@ check_config_warnings() {
     sleep 10
 }
 
-check_config_warnings
+#check_config_warnings
 
 # Handle input (single domain)
 DOMAIN="$1"
@@ -320,7 +320,8 @@ sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 rm JS_URL_endpoints_temp.txt
 
 mkdir -p downloaded_js_files
-cat JS_URL_endpoints.txt | xargs -P10 -I{} bash -c 'safe_name=$(echo "{}" | sed "s|https\?://||; s|[^a-zA-Z0-9]|_|g"); wget -q --no-check-certificate --retry-connrefused --wait=1 --random-wait --timeout=5 --tries=2 -O downloaded_js_files/${safe_name}.js "{}"'
+cat JS_URL_endpoints.txt | xargs -P10 -I{} bash -c 'url="{}"; hash=$(echo -n "$url" | md5sum | cut -d" " -f1); ext="js"; outfile="downloaded_js_files/${hash}.${ext}"; [ -f "$outfile" ] && { echo "Skipping existing file: $outfile"; exit 0; }; content=$(wget -q --no-check-certificate --retry-connrefused --wait=1 --random-wait --timeout=5 --tries=2 -O - "$url"); [ -n "$content" ] && { echo "// Original URL: $url"; echo "$content"; } > "$outfile"'
+
 
 # Active: searching for sensitive information in JS files with jshunter 
 echo "Searching for urls in JS files using xnLinkFinder..."
