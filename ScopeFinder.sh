@@ -17,7 +17,6 @@ usage() {
     echo
     echo "Environment variables required:"
     echo " - SHODAN_API_KEY"
-    echo " - DEHASHED_EMAIL"
     echo " - DEHASHED_API_KEY"
     echo " - HUNTERIO_API_KEY"
     echo " - PDCP_API_KEY"
@@ -58,7 +57,6 @@ check_env_var() {
 
 # Check each environment variable
 check_env_var "SHODAN_API_KEY"
-check_env_var "DEHASHED_EMAIL"
 check_env_var "DEHASHED_API_KEY"
 check_env_var "HUNTERIO_API_KEY"
 check_env_var "PDCP_API_KEY"
@@ -218,14 +216,37 @@ sort -u "ips.txt" -o "ips.txt"
 echo "Searching for emails on hunter.io"
 curl -s "https://api.hunter.io/v2/domain-search?domain=${DOMAIN}&api_key=${HUNTERIO_API_KEY}" | jq -r '.data.emails[].value' >> "emails.txt"
 
+# echo "Searching for leaked credentials on DeHashed"
+# curl -s "https://api.dehashed.com/search?query=${DOMAIN}" -u $DEHASHED_EMAIL:$DEHASHED_API_KEY -H 'Accept: application/json' >> dehashed_raw.json
+
+# # Extract Emails
+# jq -r '.entries[] | select(.email != null and .email != "") | .email' dehashed_raw.json >> "emails.txt" 2>/dev/null
+
+# # Extract credential pairs
+# jq -r 'reduce .entries[] as $item ({}; if $item.email != null and $item.email != "" and $item.password != null and $item.password != "" then .[$item.email] += [$item.password] else . end) | to_entries | map(.value |= unique) | .[] | "\(.key): \(.value[])"' dehashed_raw.json >> leaked_credential_pairs.txt 2>/dev/null
+
 echo "Searching for leaked credentials on DeHashed"
-curl -s "https://api.dehashed.com/search?query=${DOMAIN}" -u $DEHASHED_EMAIL:$DEHASHED_API_KEY -H 'Accept: application/json' >> dehashed_raw.json
+curl -s -X POST 'https://api.dehashed.com/v2/search' \
+  --header "Dehashed-Api-Key: $DEHASHED_API_KEY" \
+  --header "Content-Type: application/json" \
+  --data-raw "{\"query\": \"$DOMAIN\", \"size\": 10000}" >> dehashed_raw.json
 
-# Extract Emails
-jq -r '.entries[] | select(.email != null and .email != "") | .email' dehashed_raw.json >> "emails.txt" 2>/dev/null
+# Extract Emails (iterate over each email in the email array)
+jq -r '.entries[] | .email[]? | select(. != null and . != "")' dehashed_raw.json >> "emails.txt" 2>/dev/null
 
-# Extract credential pairs
-jq -r 'reduce .entries[] as $item ({}; if $item.email != null and $item.email != "" and $item.password != null and $item.password != "" then .[$item.email] += [$item.password] else . end) | to_entries | map(.value |= unique) | .[] | "\(.key): \(.value[])"' dehashed_raw.json >> leaked_credential_pairs.txt 2>/dev/null
+# Extract credential pairs by reducing over entries:
+jq -r '
+  reduce .entries[] as $item ({}; 
+    if ($item.email and $item.password and ($item.email | length > 0) and ($item.password | length > 0)) 
+    then 
+      reduce $item.email[] as $e (.; .[$e] = ((.[$e] // []) + $item.password))
+    else . end
+  )
+  | to_entries 
+  | map(.value |= unique) 
+  | .[] 
+  | "\(.key): \(.value[])"
+' dehashed_raw.json >> leaked_credential_pairs.txt 2>/dev/null
 
 # Sorting and deduplicating emails
 echo "Sorting and deduplicating emails..."
