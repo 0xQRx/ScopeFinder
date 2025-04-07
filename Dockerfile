@@ -47,13 +47,6 @@ ENV PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:$PATH"
 ENV GOBIN="/root/go/bin"
 ENV PATH="$PATH:$GOBIN"
 
-
-# RUN git clone https://github.com/trufflesecurity/trufflehog.git && \
-#     cd trufflehog && \
-#     go install && \
-#     cd .. && \
-#     rm -rf trufflehog
-
 # Download and install TruffleHog prebuilt binary
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; \
