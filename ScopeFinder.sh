@@ -333,6 +333,7 @@ uro -i URLs_with_params.txt >> URLs_with_params_uniq.txt
 urldedup -f URLs_with_params_uniq.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 -validate -t 20 -out-burp BURP_URLs_with_params.txt -out-burp-gap BURP_GAP_URLs_with_params.txt
 
 #Extract all JS files
+echo "Downloading JS files.."
 grep -E '\.js(\?.*)?$' xnLinkFinder_output.txt >> JS_URL_endpoints_temp.txt
 grep -E '\.js(\?.*)?$' collected_URLs.txt >> JS_URL_endpoints_temp.txt
 grep -E '\.js(\?.*)?$' katana_crawled_URLS.txt >> JS_URL_endpoints_temp.txt
@@ -345,9 +346,9 @@ cat JS_URL_endpoints.txt | xargs -P10 -I{} bash -c 'url="{}"; hash=$(echo -n "$u
 
 
 # Active: searching for sensitive information in JS files with jshunter 
-echo "Searching for urls in JS files using xnLinkFinder..."
+echo "Searching for urls in JS files using linkfinder and xnLinkFinder..."
 mkdir linkfinder_output
-linkfinder -i JS_URL_endpoints.txt --out-dir linkfinder_output
+linkfinder -i ./downloaded_js_files --out-dir linkfinder_output --unknown-domain unknown_domain_URLs.txt
 xnLinkFinder -i ./downloaded_js_files -sp "$DOMAIN" -sf "$DOMAIN" -o linkfinder_output/xnLinkFinder_output.txt -op linkfinder_output/xnLinkFinder_parameters.txt -oo linkfinder_output/xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
 
 echo "Searching for secrets with jshunter..."
