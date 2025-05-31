@@ -67,6 +67,7 @@ RUN ARCH=$(uname -m) && \
 RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
     go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest && \
     go install -v github.com/s0md3v/smap/cmd/smap@latest && \
+    #go install github.com/BishopFox/jsluice/cmd/jsluice@latest && \
     go install github.com/incogbyte/shosubgo@latest && \
     CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest && \
     go install github.com/g0ldencybersec/CloudRecon@latest && \

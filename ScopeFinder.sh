@@ -123,6 +123,7 @@ check_and_install_tools() {
     echo "Checking and installing tools..."
 
     install_tool "subfinder" "go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest > /dev/null"
+    #install_tool "jsluice" "go install github.com/BishopFox/jsluice/cmd/jsluice@latest > /dev/null"
     install_tool "waymore" "pipx install git+https://github.com/xnl-h4ck3r/waymore.git > /dev/null"
     install_tool "msftrecon" "pipx install git+https://github.com/0xQRx/msftrecon.git > /dev/null"
     install_tool "linkfinder" "pipx install git+https://github.com/0xQRx/LinkFinder.git --include-deps > /dev/null"
@@ -217,13 +218,6 @@ echo "Searching for emails on hunter.io"
 curl -s "https://api.hunter.io/v2/domain-search?domain=${DOMAIN}&api_key=${HUNTERIO_API_KEY}" | jq -r '.data.emails[].value' >> "emails.txt"
 
 # echo "Searching for leaked credentials on DeHashed"
-# curl -s "https://api.dehashed.com/search?query=${DOMAIN}" -u $DEHASHED_EMAIL:$DEHASHED_API_KEY -H 'Accept: application/json' >> dehashed_raw.json
-
-# # Extract Emails
-# jq -r '.entries[] | select(.email != null and .email != "") | .email' dehashed_raw.json >> "emails.txt" 2>/dev/null
-
-# # Extract credential pairs
-# jq -r 'reduce .entries[] as $item ({}; if $item.email != null and $item.email != "" and $item.password != null and $item.password != "" then .[$item.email] += [$item.password] else . end) | to_entries | map(.value |= unique) | .[] | "\(.key): \(.value[])"' dehashed_raw.json >> leaked_credential_pairs.txt 2>/dev/null
 
 echo "Searching for leaked credentials on DeHashed"
 curl -s -X POST 'https://api.dehashed.com/v2/search' \
@@ -257,8 +251,8 @@ echo "Finished email and credential search..."
 
 # Passive: URL finder
 echo "Running URL finder and downloading archived URLs with waymore - it might take several hours..."
-mkdir temp_files
-waymore -i "$DOMAIN" -mode B -f -oU "collected_URLs.txt" -url-filename -oR temp_files > /dev/null 2>&1
+mkdir waymore_downloaded_data
+waymore -i "$DOMAIN" -mode B -f -oU "collected_URLs.txt" -url-filename -oR waymore_downloaded_data > /dev/null 2>&1
 sort -u "collected_URLs.txt" -o "collected_URLs.txt"
 
 # Passive: Port scanning with smap
@@ -269,14 +263,34 @@ grep -E "443|80" smap_results/open_ports.gnmap | awk '/Host:/ {if ($3 ~ /\(/) {p
 
 # Active: Banner Grabbing / Screenshots
 echo "Running banner grabbing and taking screenshots for subdomains with httpx..."
-httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -o "httpx_output.txt" -no-color > /dev/null 2>&1 
+httpx -status-code -title -tech-detect -list "subdomains.txt" -sid 5 -ss -fr -o "httpx_output.txt" -no-color > /dev/null 2>&1 
 
-# Active: Crawling using katana
 # Extract good codes from httpx output file
-grep -E "\[200\]|\[301\]|\[302\]" httpx_output.txt | sed -E 's|https?://([^/]+).*|\1|' | awk '{print $1}' >> subdomains_to_crawl.txt
+grep '200]' httpx_output.txt | while read -r line; do
+    # Extract original URL and subdomain
+    original_url=$(echo "$line" | awk '{print $1}')
+    original_subdomain=$(echo "$original_url" | sed -E 's#^https?://([^/@]*@)?##' | cut -d/ -f1)
+
+    # Extract status codes
+    status_codes=$(echo "$line" | grep -oP '\[\K[^\]]+(?=\])' | head -n1)
+
+    if [[ "$status_codes" == "200" ]]; then
+        if [[ "$original_subdomain" == "$DOMAIN" || "$original_subdomain" == *.$DOMAIN ]]; then
+            echo "$original_subdomain"
+        fi
+    else
+        final_url=$(echo "$line" | grep -oP '\[https?://[^\]]+\]' | tail -n1 | tr -d '[]')
+        final_subdomain=$(echo "$final_url" | sed -E 's#^https?://([^/@]*@)?##' | cut -d/ -f1)
+
+        if [[ ( "$original_subdomain" == "$DOMAIN" || "$original_subdomain" == *.$DOMAIN ) && \
+              ( "$final_subdomain" == "$DOMAIN" || "$final_subdomain" == *.$DOMAIN ) ]]; then
+            echo "$final_subdomain"
+        fi
+    fi
+done | sort -u >> subdomains_to_crawl.txt
 
 # Extract WordPress sites from httpx output
-grep -iE '\[.*wordpress.*\]' httpx_output.txt | awk '{print $1}' | sed -E 's#^https?://([^/@]*@)?(www\.)?##' | awk -F/ '{print $1}' | sort -u | while read domain; do grep -iE "https?://([^/@]*@)?(www\.)?$domain\b" httpx_output.txt | awk '{print $1}' | head -n1; done > wordpress_sites.txt
+grep -iE '\[.*wordpress.*\]' httpx_output.txt | awk '{print $1}' | sort -u > wordpress_sites.txt
 
 mkdir -p wpscan
 # Check if there are any WordPress sites to scan
@@ -297,14 +311,14 @@ mv wordpress_sites.txt wpscan/ 2>/dev/null
 
 # Crawling with katana
 echo "Crawling subdomains with katana... it will take some time."
-mkdir katana_temp_files
-katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 2 -c 10 -p 2 -rl 10 -rlm 120 -timeout 5 -retry 2 -o katana_crawled_URLS.txt -silent -sr -srd katana_temp_files -ef png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf,css > /dev/null 2>&1
+mkdir katana_downloaded_data
+katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 2 -c 10 -p 2 -rl 10 -rlm 120 -timeout 5 -retry 2 -o katana_crawled_URLS.txt -silent -sr -srd katana_downloaded_data -ef png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf,css > /dev/null 2>&1
 sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
 
 # Searching links with xnLinkFinder
 echo "Searching for urls in archives using xnLinkFinder..."
-xnLinkFinder -i ./temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
-xnLinkFinder -i ./katana_temp_files -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
+xnLinkFinder -i ./waymore_downloaded_data -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
+xnLinkFinder -i ./katana_downloaded_data -sp "$DOMAIN" -sf "$DOMAIN" -o xnLinkFinder_output.txt -op xnLinkFinder_parameters.txt -oo xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
 
 # Process xnLinkFinder_output.txt
 grep -vE '^https?://' xnLinkFinder_output.txt >> domain_not_known_xnLinkFinder_output.txt
@@ -326,17 +340,64 @@ grep -oP 'https?://[^\s"]+' collected_URLs.txt | grep -v '\?' >> URLs_without_pa
 sort -u "URLs_without_params.txt" -o "URLs_without_params.txt"
 
 # Prep unique and live URLs for Burp Scanner
-echo "Probing unique URLs... Building URL list for BURP scanner... Grab a coffee!"
+echo "Probing unique URLs... Building LIVE URL list..."
 uro -i URLs_without_params.txt >> URLs_without_params_uniq.txt
 uro -i URLs_with_params.txt >> URLs_with_params_uniq.txt
 
-urldedup -f URLs_with_params_uniq.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 -validate -t 20 -out-burp BURP_URLs_with_params.txt -out-burp-gap BURP_GAP_URLs_with_params.txt
+# Extract all parameters
+grep -hoP 'https?://[^\s"<>]+?\?[^\s"<>]*' URLs_with_params_uniq.txt | sed -E 's/.*\?//' | tr '&' '\n' | sed -E 
+'s/=.*//' | sort -u > uniq_params.txt
+
+# urldedup -f URLs_with_params_uniq.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 -validate -t 20 -out-burp BURP_URLs_with_params.txt -out-burp-gap BURP_GAP_URLs_with_params.txt
+
+filter_in_scope_urls() {
+    local input_file="$1"
+
+    # If the file doesn't exist, just return silently
+    if [[ ! -f "$input_file" ]]; then
+        echo "⚠️  Skipping: File not found - $input_file" >&2
+        return 0
+    fi
+
+    grep '200]' "$input_file" | while read -r line; do
+        # Extract original URL and host
+        original_url=$(echo "$line" | awk '{print $1}')
+        original_host=$(echo "$original_url" | sed -E 's#^https?://([^/@]*@)?##' | cut -d/ -f1)
+
+        # Extract status codes
+        status_codes=$(echo "$line" | grep -oP '\[\K[^\]]+(?=\])' | head -n1)
+
+        if [[ "$status_codes" == "200" ]]; then
+            if [[ "$original_host" == "$DOMAIN" || "$original_host" == *.$DOMAIN ]]; then
+                echo "$original_url"
+            fi
+        else
+            # Extract final redirected URL
+            final_url=$(echo "$line" | grep -oP '\[https?://[^\]]+\]' | tail -n1 | tr -d '[]')
+            final_host=$(echo "$final_url" | sed -E 's#^https?://([^/@]*@)?##' | cut -d/ -f1)
+
+            if [[ "$original_host" == "$DOMAIN" || "$original_host" == *.$DOMAIN ]]; then
+                if [[ "$final_host" == "$DOMAIN" || "$final_host" == *.$DOMAIN ]]; then
+                    echo "$final_url"
+                fi
+            fi
+        fi
+    done | sort -u
+}
+
+httpx -status-code -list URLs_with_params_uniq.txt -fr -no-color -o "httpx_live_links_with_params_output.txt" > /dev/null 2>&1
+
+filter_in_scope_urls "httpx_live_links_with_params_output.txt" >> LIVE_URLs_with_params_uniq.txt
+
+httpx -status-code -list URLs_without_params_uniq.txt -fr -no-color -o "httpx_live_links_without_params_output.txt" > /dev/null 2>&1
+
+filter_in_scope_urls "httpx_live_links_without_params_output.txt" >> LIVE_URLs_without_params_uniq.txt
 
 #Extract all JS files
 echo "Downloading JS files.."
-grep -E '\.js(\?.*)?$' xnLinkFinder_output.txt >> JS_URL_endpoints_temp.txt
-grep -E '\.js(\?.*)?$' collected_URLs.txt >> JS_URL_endpoints_temp.txt
-grep -E '\.js(\?.*)?$' katana_crawled_URLS.txt >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' xnLinkFinder_output.txt | grep -iEv "jquery|jquery-ui|jquery\.min|react|react-dom|angular|angularjs|vue|vue\.min|ember|backbone|underscore|lodash|moment|dayjs|d3|three|chartjs|chart\.js|highcharts|gsap|animejs|popper|bootstrap|semantic-ui|materialize|tailwind|axios|fetch|zepto|modernizr|requirejs|next|nuxt|svelte|lit|redux|mobx|handlebars|mustache|express|rxjs|fastify|inertia|meteor|mithril|knockout|ractive|canjs|alpinejs|solid-js|preact|pixi|leaflet|openlayers|fullcalendar|zurb|enyo|fabric|svg\.js|velocity|vivus|particles\.js|zxcvbn|quill|tinymce|ckeditor|codemirror|highlight|mathjax|pdfjs|videojs|plyr|jwplayer|soundjs|howler|createjs|p5|stats\.js|tracking\.js|fancybox|lightbox|swiper|slick-carousel|flickity|lazysizes|barba|scrollmagic|locomotive|skrollr|headroom|turbolinks|stimulus|alpine\.js|instantclick|htmx|wix|avada|fusion|awb|modernizr|thunderbolt|Blazor|gtm\.js|blazor|win\.js" >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' collected_URLs.txt | grep -iEv "jquery|jquery-ui|jquery\.min|react|react-dom|angular|angularjs|vue|vue\.min|ember|backbone|underscore|lodash|moment|dayjs|d3|three|chartjs|chart\.js|highcharts|gsap|animejs|popper|bootstrap|semantic-ui|materialize|tailwind|axios|fetch|zepto|modernizr|requirejs|next|nuxt|svelte|lit|redux|mobx|handlebars|mustache|express|rxjs|fastify|inertia|meteor|mithril|knockout|ractive|canjs|alpinejs|solid-js|preact|pixi|leaflet|openlayers|fullcalendar|zurb|enyo|fabric|svg\.js|velocity|vivus|particles\.js|zxcvbn|quill|tinymce|ckeditor|codemirror|highlight|mathjax|pdfjs|videojs|plyr|jwplayer|soundjs|howler|createjs|p5|stats\.js|tracking\.js|fancybox|lightbox|swiper|slick-carousel|flickity|lazysizes|barba|scrollmagic|locomotive|skrollr|headroom|turbolinks|stimulus|alpine\.js|instantclick|htmx|wix|avada|fusion|awb|modernizr|thunderbolt|Blazor|gtm\.js|blazor|win\.js" >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' katana_crawled_URLS.txt | grep -iEv "jquery|jquery-ui|jquery\.min|react|react-dom|angular|angularjs|vue|vue\.min|ember|backbone|underscore|lodash|moment|dayjs|d3|three|chartjs|chart\.js|highcharts|gsap|animejs|popper|bootstrap|semantic-ui|materialize|tailwind|axios|fetch|zepto|modernizr|requirejs|next|nuxt|svelte|lit|redux|mobx|handlebars|mustache|express|rxjs|fastify|inertia|meteor|mithril|knockout|ractive|canjs|alpinejs|solid-js|preact|pixi|leaflet|openlayers|fullcalendar|zurb|enyo|fabric|svg\.js|velocity|vivus|particles\.js|zxcvbn|quill|tinymce|ckeditor|codemirror|highlight|mathjax|pdfjs|videojs|plyr|jwplayer|soundjs|howler|createjs|p5|stats\.js|tracking\.js|fancybox|lightbox|swiper|slick-carousel|flickity|lazysizes|barba|scrollmagic|locomotive|skrollr|headroom|turbolinks|stimulus|alpine\.js|instantclick|htmx|wix|avada|fusion|awb|modernizr|thunderbolt|Blazor|gtm\.js|blazor|win\.js" >> JS_URL_endpoints_temp.txt
 uro -i JS_URL_endpoints_temp.txt > JS_URL_endpoints.txt
 sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 rm JS_URL_endpoints_temp.txt
@@ -353,19 +414,52 @@ xnLinkFinder -i ./downloaded_js_files -sp "$DOMAIN" -sf "$DOMAIN" -o linkfinder_
 
 echo "Searching for secrets with jshunter..."
 jshunter -d downloaded_js_files --recursive -quiet -o jshunter_found_secrets_1.txt 
-jshunter -d temp_files --recursive -quiet -o jshunter_found_secrets_2.txt 
-jshunter -d katana_temp_files --recursive -quiet -o jshunter_found_secrets_3.txt 
+jshunter -d waymore_downloaded_data --recursive -quiet -o jshunter_found_secrets_2.txt 
+jshunter -d katana_downloaded_data --recursive -quiet -o jshunter_found_secrets_3.txt 
 cat jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt > jshunter_found_secrets.txt
 
 echo "Searching for secrets with trufflehog..."
-trufflehog filesystem --log-level='-1' temp_files >> trufflehog_secrets.txt 2>&1
-trufflehog filesystem --log-level='-1' katana_temp_files >> trufflehog_secrets.txt 2>&1
+trufflehog filesystem --log-level='-1' waymore_downloaded_data >> trufflehog_secrets.txt 2>&1
+trufflehog filesystem --log-level='-1' katana_downloaded_data >> trufflehog_secrets.txt 2>&1
 trufflehog filesystem --log-level='-1' downloaded_js_files >> trufflehog_secrets.txt 2>&1
 
-echo "Searching for hidden parameters with x8..."
-cat BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt > FUZZ_Params_URLs.txt
-x8 -u FUZZ_Params_URLs.txt -w /wordlists/burp-parameter-names.txt --one-worker-per-host -W2 -O url -o BURP_URLs_with_x8_custom_params.txt --remove-empty > /dev/null 2>&1
-rm FUZZ_Params_URLs.txt
+echo "Extracting scripts that might have dynamic URLs in them..."
+output_file="extracted_inline_scripts/scripts.html"
+mkdir -p extracted_inline_scripts
+: > "$output_file"  # Clear previous output
+
+declare -A seen_hashes  # Deduplication map
+
+# Folders to scan
+folders=("waymore_downloaded_data" "katana_downloaded_data")
+
+for folder in "${folders[@]}"; do
+  echo "Processing folder: $folder"
+
+  for src in "$folder"/*; do
+    [[ -f "$src" ]] || continue  # skip if not a file
+
+    while IFS= read -r -d '' block; do
+      [[ -z "$block" ]] && continue
+
+      # Hash for deduplication
+      hash=$(printf "%s" "$block" | md5sum | cut -d' ' -f1)
+      [[ -n "${seen_hashes[$hash]}" ]] && continue
+      seen_hashes[$hash]=1
+
+      # Check for behavioral patterns
+      printf "%s" "$block" | grep -Pqzi '<script(?![^>]*\bsrc=)[^>]*>(?=[\s\S]*?(fetch\(|\.open\(|new\s+XMLHttpRequest|\.send\(|\$\.ajax\(|\$\.get\(|\$\.post\(|\$\.patch\(|\.sendBeacon\(|new\s+WebSocket|new\s+EventSource|postMessage\(|axios\.|io\(|\.write\())[\s\S]*?</script>' || continue
+
+      # Append to output file
+      printf "%s\n\n" "$block" >> "$output_file"
+    done < <(grep -Pzo '<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?</script>' "$src")
+  done
+done
+
+# echo "Searching for hidden parameters with x8..."
+# cat BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt > FUZZ_Params_URLs.txt
+# x8 -u FUZZ_Params_URLs.txt -w /wordlists/burp-parameter-names.txt --one-worker-per-host -W2 -O url -o BURP_URLs_with_x8_custom_params.txt --remove-empty > /dev/null 2>&1
+# rm FUZZ_Params_URLs.txt
 
 echo "Performing cloud recon..."
 mkdir cloud
@@ -386,7 +480,7 @@ done
 
 # Cleanup
 # Create sub-directories for organization
-mkdir -p subdomains emails urls/artifacts urls/burp_scanner scans httpx secrets
+mkdir -p subdomains emails urls/artifacts scans httpx secrets
 # Move subdomain-related files
 mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>/dev/null
 
@@ -394,11 +488,10 @@ mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>
 mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
 
 # Move URL-related files
-mv BURP_URLs_with_x8_custom_params.txt BURP_GAP_URLs_with_params.txt BURP_URLs_with_params.txt urls/burp_scanner/ 2>/dev/null
 mv domain_not_known_xnLinkFinder_output.txt linkfinder_output/ 2>/dev/null
-mv linkfinder_output URLs_with_params_uniq.txt URLs_without_params_uniq.txt URLs_with_params.txt URLs_without_params.txt urls/ 2>/dev/null
+mv linkfinder_output extracted_inline_scripts LIVE_URLs_with_params_uniq.txt LIVE_URLs_without_params_uniq.txt uniq_params.txt urls/ 2>/dev/null
 mv jshunter_found_secrets.txt trufflehog_secrets.txt secrets/ 2>/dev/null
-mv downloaded_js_files temp_files katana_temp_files xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt urls/artifacts/ 2>/dev/null
+mv downloaded_js_files waymore_downloaded_data katana_downloaded_data xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt  URLs_with_params.txt URLs_without_params.txt httpx_live_links_with_params_output.txt httpx_live_links_without_params_output.txt URLs_with_params_uniq.txt URLs_without_params_uniq.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
 mv smap_results scans/ 2>/dev/null
