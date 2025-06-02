@@ -287,7 +287,7 @@ grep '200]' httpx_output.txt | while read -r line; do
             echo "$final_subdomain"
         fi
     fi
-done | sort -u >> subdomains_to_crawl.txt
+done | sort -u >> LIVE_subdomains.txt
 
 # Extract WordPress sites from httpx output
 grep -iE '\[.*wordpress.*\]' httpx_output.txt | awk '{print $1}' | sort -u > wordpress_sites.txt
@@ -312,7 +312,7 @@ mv wordpress_sites.txt wpscan/ 2>/dev/null
 # Crawling with katana
 echo "Crawling subdomains with katana... it will take some time."
 mkdir katana_downloaded_data
-katana -list subdomains_to_crawl.txt -headless -no-sandbox -jc -d 2 -c 10 -p 2 -rl 10 -rlm 120 -timeout 5 -retry 2 -o katana_crawled_URLS.txt -silent -sr -srd katana_downloaded_data -ef png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf,css > /dev/null 2>&1
+katana -list LIVE_subdomains.txt -headless -no-sandbox -jc -d 2 -c 10 -p 2 -rl 10 -rlm 120 -timeout 5 -retry 2 -o katana_crawled_URLS.txt -silent -sr -srd katana_downloaded_data -ef png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf,css > /dev/null 2>&1
 sort -u "katana_crawled_URLS.txt" -o "katana_crawled_URLS.txt"
 
 # Searching links with xnLinkFinder
@@ -504,7 +504,7 @@ done
 # Create sub-directories for organization
 mkdir -p subdomains emails urls/artifacts scans httpx secrets
 # Move subdomain-related files
-mv subdomains.txt wildcard_subdomains.txt subdomains_to_crawl.txt subdomains/ 2>/dev/null
+mv subdomains.txt wildcard_subdomains.txt LIVE_subdomains.txt subdomains/ 2>/dev/null
 
 # Move email and credential-related files
 mv emails.txt leaked_credential_pairs.txt dehashed_raw.json emails/ 2>/dev/null
