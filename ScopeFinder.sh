@@ -345,8 +345,8 @@ uro -i URLs_without_params.txt >> URLs_without_params_uniq.txt
 uro -i URLs_with_params.txt >> URLs_with_params_uniq.txt
 
 # Extract all parameters
-grep -hoP 'https?://[^\s"<>]+?\?[^\s"<>]*' URLs_with_params_uniq.txt | sed -E 's/.*\?//' | tr '&' '\n' | sed -E 
-'s/=.*//' | sort -u > uniq_params.txt
+echo "Extracting URL parameters used by the company..."
+grep -hoP 'https?://[^\s"<>]+?\?[^\s"<>]*' URLs_with_params_uniq.txt | sed -E 's/.*\?//' | tr '&' '\n' | sed -E 's/=.*//' | sort -u > uniq_params.txt
 
 # urldedup -f URLs_with_params_uniq.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 -validate -t 20 -out-burp BURP_URLs_with_params.txt -out-burp-gap BURP_GAP_URLs_with_params.txt
 

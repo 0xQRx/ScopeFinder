@@ -3,4 +3,5 @@
 *.yml
 *.txt
 *.config/waymore/results/*
+*.config/go
 ScopeFinder-dev.sh
