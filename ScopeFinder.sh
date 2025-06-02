@@ -350,6 +350,8 @@ grep -hoP 'https?://[^\s"<>]+?\?[^\s"<>]*' URLs_with_params_uniq.txt | sed -E 's
 
 # urldedup -f URLs_with_params_uniq.txt -ignore "css,js,png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf" -examples 1 -validate -t 20 -out-burp BURP_URLs_with_params.txt -out-burp-gap BURP_GAP_URLs_with_params.txt
 
+# Function extracts in-scope URLs that belong to the main specified domain, either from the final redirected page or from the general result if no redirection occurred.
+
 filter_in_scope_urls() {
     local input_file="$1"
 
@@ -385,19 +387,39 @@ filter_in_scope_urls() {
     done | sort -u
 }
 
+# Probe URLs with parameters
 httpx -status-code -list URLs_with_params_uniq.txt -fr -no-color -o "httpx_live_links_with_params_output.txt" > /dev/null 2>&1
 
-filter_in_scope_urls "httpx_live_links_with_params_output.txt" >> LIVE_URLs_with_params_uniq.txt
-
+# Probe URLs without parameters
 httpx -status-code -list URLs_without_params_uniq.txt -fr -no-color -o "httpx_live_links_without_params_output.txt" > /dev/null 2>&1
 
-filter_in_scope_urls "httpx_live_links_without_params_output.txt" >> LIVE_URLs_without_params_uniq.txt
+# Function extracts in-scope URLs that belong to the main specified domain, either from the final redirected page or from the general result if no redirection occurred.
+
+filter_in_scope_urls "httpx_live_links_with_params_output.txt" | grep -oP 'https?://[^\s"]+\?[^\s"]*' | grep -Ev '\.js(\?.*)?$' >> LIVE_URLs_with_params_uniq_temp.txt
+
+filter_in_scope_urls "httpx_live_links_without_params_output.txt" | grep -oP 'https?://[^\s"]+\?[^\s"]*' | grep -Ev '\.js(\?.*)?$' >> LIVE_URLs_with_params_uniq_temp.txt
+
+uro -i LIVE_URLs_with_params_uniq_temp.txt >> LIVE_URLs_with_params_uniq.txt
+sort -u "LIVE_URLs_with_params_uniq.txt" -o "LIVE_URLs_with_params_uniq.txt"
+
+rm LIVE_URLs_with_params_uniq_temp.txt
+
+# Function extracts in-scope URLs that belong to the main specified domain, either from the final redirected page or from the general result if no redirection occurred.
+
+filter_in_scope_urls "httpx_live_links_with_params_output.txt" | grep -v '\?' >> LIVE_URLs_without_params_uniq_temp.txt
+
+filter_in_scope_urls "httpx_live_links_without_params_output.txt" | grep -v '\?' >> LIVE_URLs_without_params_uniq_temp.txt
+
+uro -i LIVE_URLs_without_params_uniq_temp.txt >> LIVE_URLs_without_params_uniq.txt
+sort -u "LIVE_URLs_without_params_uniq.txt" -o "LIVE_URLs_without_params_uniq.txt"
+
+rm LIVE_URLs_without_params_uniq_temp.txt
 
 #Extract all JS files
 echo "Downloading JS files.."
-grep -E '\.js(\?.*)?$' xnLinkFinder_output.txt | grep -iEv "jquery|jquery-ui|jquery\.min|react|react-dom|angular|angularjs|vue|vue\.min|ember|backbone|underscore|lodash|moment|dayjs|d3|three|chartjs|chart\.js|highcharts|gsap|animejs|popper|bootstrap|semantic-ui|materialize|tailwind|axios|fetch|zepto|modernizr|requirejs|next|nuxt|svelte|lit|redux|mobx|handlebars|mustache|express|rxjs|fastify|inertia|meteor|mithril|knockout|ractive|canjs|alpinejs|solid-js|preact|pixi|leaflet|openlayers|fullcalendar|zurb|enyo|fabric|svg\.js|velocity|vivus|particles\.js|zxcvbn|quill|tinymce|ckeditor|codemirror|highlight|mathjax|pdfjs|videojs|plyr|jwplayer|soundjs|howler|createjs|p5|stats\.js|tracking\.js|fancybox|lightbox|swiper|slick-carousel|flickity|lazysizes|barba|scrollmagic|locomotive|skrollr|headroom|turbolinks|stimulus|alpine\.js|instantclick|htmx|wix|avada|fusion|awb|modernizr|thunderbolt|Blazor|gtm\.js|blazor|win\.js" >> JS_URL_endpoints_temp.txt
-grep -E '\.js(\?.*)?$' collected_URLs.txt | grep -iEv "jquery|jquery-ui|jquery\.min|react|react-dom|angular|angularjs|vue|vue\.min|ember|backbone|underscore|lodash|moment|dayjs|d3|three|chartjs|chart\.js|highcharts|gsap|animejs|popper|bootstrap|semantic-ui|materialize|tailwind|axios|fetch|zepto|modernizr|requirejs|next|nuxt|svelte|lit|redux|mobx|handlebars|mustache|express|rxjs|fastify|inertia|meteor|mithril|knockout|ractive|canjs|alpinejs|solid-js|preact|pixi|leaflet|openlayers|fullcalendar|zurb|enyo|fabric|svg\.js|velocity|vivus|particles\.js|zxcvbn|quill|tinymce|ckeditor|codemirror|highlight|mathjax|pdfjs|videojs|plyr|jwplayer|soundjs|howler|createjs|p5|stats\.js|tracking\.js|fancybox|lightbox|swiper|slick-carousel|flickity|lazysizes|barba|scrollmagic|locomotive|skrollr|headroom|turbolinks|stimulus|alpine\.js|instantclick|htmx|wix|avada|fusion|awb|modernizr|thunderbolt|Blazor|gtm\.js|blazor|win\.js" >> JS_URL_endpoints_temp.txt
-grep -E '\.js(\?.*)?$' katana_crawled_URLS.txt | grep -iEv "jquery|jquery-ui|jquery\.min|react|react-dom|angular|angularjs|vue|vue\.min|ember|backbone|underscore|lodash|moment|dayjs|d3|three|chartjs|chart\.js|highcharts|gsap|animejs|popper|bootstrap|semantic-ui|materialize|tailwind|axios|fetch|zepto|modernizr|requirejs|next|nuxt|svelte|lit|redux|mobx|handlebars|mustache|express|rxjs|fastify|inertia|meteor|mithril|knockout|ractive|canjs|alpinejs|solid-js|preact|pixi|leaflet|openlayers|fullcalendar|zurb|enyo|fabric|svg\.js|velocity|vivus|particles\.js|zxcvbn|quill|tinymce|ckeditor|codemirror|highlight|mathjax|pdfjs|videojs|plyr|jwplayer|soundjs|howler|createjs|p5|stats\.js|tracking\.js|fancybox|lightbox|swiper|slick-carousel|flickity|lazysizes|barba|scrollmagic|locomotive|skrollr|headroom|turbolinks|stimulus|alpine\.js|instantclick|htmx|wix|avada|fusion|awb|modernizr|thunderbolt|Blazor|gtm\.js|blazor|win\.js" >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' xnLinkFinder_output.txt | grep -iEv "jquery|jquery-ui|jquery\.min|react|react-dom|angular|angularjs|vue|vue\.min|ember|backbone|underscore|lodash|moment|dayjs|d3|three|chartjs|chart\.js|highcharts|gsap|animejs|popper|bootstrap|semantic-ui|materialize|tailwind|axios|fetch|zepto|modernizr|requirejs|next|nuxt|svelte|lit|redux|mobx|handlebars|mustache|express|rxjs|fastify|inertia|meteor|mithril|knockout|ractive|canjs|alpinejs|solid-js|preact|pixi|leaflet|openlayers|fullcalendar|zurb|enyo|fabric|svg\.js|velocity|vivus|particles\.js|zxcvbn|quill|tinymce|ckeditor|codemirror|highlight|mathjax|pdfjs|videojs|plyr|jwplayer|soundjs|howler|createjs|p5|stats\.js|tracking\.js|fancybox|lightbox|swiper|slick-carousel|flickity|lazysizes|barba|scrollmagic|locomotive|skrollr|headroom|turbolinks|stimulus|alpine\.js|instantclick|htmx|wix|avada|fusion|awb|modernizr|thunderbolt|Blazor|gtm\.js|blazor|win\.js|wp-*" >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' collected_URLs.txt | grep -iEv "jquery|jquery-ui|jquery\.min|react|react-dom|angular|angularjs|vue|vue\.min|ember|backbone|underscore|lodash|moment|dayjs|d3|three|chartjs|chart\.js|highcharts|gsap|animejs|popper|bootstrap|semantic-ui|materialize|tailwind|axios|fetch|zepto|modernizr|requirejs|next|nuxt|svelte|lit|redux|mobx|handlebars|mustache|express|rxjs|fastify|inertia|meteor|mithril|knockout|ractive|canjs|alpinejs|solid-js|preact|pixi|leaflet|openlayers|fullcalendar|zurb|enyo|fabric|svg\.js|velocity|vivus|particles\.js|zxcvbn|quill|tinymce|ckeditor|codemirror|highlight|mathjax|pdfjs|videojs|plyr|jwplayer|soundjs|howler|createjs|p5|stats\.js|tracking\.js|fancybox|lightbox|swiper|slick-carousel|flickity|lazysizes|barba|scrollmagic|locomotive|skrollr|headroom|turbolinks|stimulus|alpine\.js|instantclick|htmx|wix|avada|fusion|awb|modernizr|thunderbolt|Blazor|gtm\.js|blazor|win\.js|wp-*" >> JS_URL_endpoints_temp.txt
+grep -E '\.js(\?.*)?$' katana_crawled_URLS.txt | grep -iEv "jquery|jquery-ui|jquery\.min|react|react-dom|angular|angularjs|vue|vue\.min|ember|backbone|underscore|lodash|moment|dayjs|d3|three|chartjs|chart\.js|highcharts|gsap|animejs|popper|bootstrap|semantic-ui|materialize|tailwind|axios|fetch|zepto|modernizr|requirejs|next|nuxt|svelte|lit|redux|mobx|handlebars|mustache|express|rxjs|fastify|inertia|meteor|mithril|knockout|ractive|canjs|alpinejs|solid-js|preact|pixi|leaflet|openlayers|fullcalendar|zurb|enyo|fabric|svg\.js|velocity|vivus|particles\.js|zxcvbn|quill|tinymce|ckeditor|codemirror|highlight|mathjax|pdfjs|videojs|plyr|jwplayer|soundjs|howler|createjs|p5|stats\.js|tracking\.js|fancybox|lightbox|swiper|slick-carousel|flickity|lazysizes|barba|scrollmagic|locomotive|skrollr|headroom|turbolinks|stimulus|alpine\.js|instantclick|htmx|wix|avada|fusion|awb|modernizr|thunderbolt|Blazor|gtm\.js|blazor|win\.js|wp-*" >> JS_URL_endpoints_temp.txt
 uro -i JS_URL_endpoints_temp.txt > JS_URL_endpoints.txt
 sort -u "JS_URL_endpoints.txt" -o "JS_URL_endpoints.txt"
 rm JS_URL_endpoints_temp.txt
