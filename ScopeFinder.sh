@@ -186,6 +186,46 @@ cd "$STAGE1" || exit
 
 echo "Running STAGE 1. Once it's done, you can start working with the results in ${STAGE1} directory."
 
+# Passive: Shodan IP search
+echo "Running Shodan IP search..."
+
+# 1. URL Encode Domain
+ENCODED_DOMAIN=$(jq -rn --arg d "$DOMAIN" '$d|@uri')
+
+# 2. Shodan Search by Cert Subject CN
+curl -s "https://api.shodan.io/shodan/host/search?key=${SHODAN_API_KEY}&query=ssl.cert.subject.cn:${ENCODED_DOMAIN}" > shodan_ssl_subject_raw_output.json
+
+# 3. Extract IP:Port/Transport (no ORG)
+jq -r '.matches[] | "\(.ip_str):\(.port)/\(.transport)"' shodan_ssl_subject_raw_output.json > IPs_from_ssl_certs.txt
+
+# 4. Extract ORGs into separate file
+jq -r '.matches[] | .org // "UNKNOWN"' shodan_ssl_subject_raw_output.json | sort -u > orgs_list.txt
+
+# 5. Prompt for ORG Selection
+echo -e "\nDiscovered ORGs (Pick one that belongs to a client to scan):"
+mapfile -t ORG_LIST < orgs_list.txt
+
+echo "0) Skip org scan"
+for i in "${!ORG_LIST[@]}"; do
+  printf "%d) %s\n" "$((i+1))" "${ORG_LIST[$i]}"
+done
+
+read -p "Select an ORG to scan by number (0 to skip): " CHOICE
+if [[ "$CHOICE" == "0" ]]; then
+  echo "Skipping org-based scan."
+else
+  ORG="${ORG_LIST[$((CHOICE - 1))]}"
+
+  # 6. Encode Selected ORG
+  ENCODED_ORG=$(jq -rn --arg org "$ORG" '$org|@uri')
+
+  # 7. Shodan Search by ORG
+  curl -s "https://api.shodan.io/shodan/host/search?key=${SHODAN_API_KEY}&query=org:\"${ENCODED_ORG}\"" > shodan_org_raw_output.json
+
+  # 8. Extract IP:Port/Transport
+  jq -r '.matches[] | "\(.ip_str):\(.port)/\(.transport)"' shodan_org_raw_output.json > IPs_belong_to_org.txt
+fi
+
 # Passive: Subdomain enumeration
 echo "Running Subdomain enumeration with subfinder..."
 subfinder -d "$DOMAIN" -all -silent >> "subdomains.txt"
@@ -211,8 +251,8 @@ sort -u "wildcard_subdomains.txt" -o "wildcard_subdomains.txt"
 echo "Subdomain enumeration completed for $DOMAIN."
 
 echo "Searching for IPs"
-godigger -domain "$DOMAIN" -search ips -t 20 > ips.txt
-sort -u "ips.txt" -o "ips.txt"
+godigger -domain "$DOMAIN" -search ips -t 20 > IPs_from_open_sources.txt
+sort -u "IPs_from_open_sources.txt" -o "IPs_from_open_sources.txt"
 
 echo "Searching for emails on hunter.io"
 curl -s "https://api.hunter.io/v2/domain-search?domain=${DOMAIN}&api_key=${HUNTERIO_API_KEY}" | jq -r '.data.emails[].value' >> "emails.txt"
@@ -502,7 +542,7 @@ done
 
 # Cleanup
 # Create sub-directories for organization
-mkdir -p subdomains emails urls/artifacts scans httpx secrets
+mkdir -p subdomains emails urls/artifacts shodan/artifacts httpx secrets
 # Move subdomain-related files
 mv subdomains.txt wildcard_subdomains.txt LIVE_subdomains.txt subdomains/ 2>/dev/null
 
@@ -516,8 +556,9 @@ mv jshunter_found_secrets.txt trufflehog_secrets.txt secrets/ 2>/dev/null
 mv downloaded_js_files waymore_downloaded_data katana_downloaded_data xnLinkFinder_output.txt xnLinkFinder_parameters.txt xnLinkFinder_out_of_scope_URLs.txt katana_crawled_URLS.txt collected_URLs.txt JS_URL_endpoints.txt jshunter_found_secrets_1.txt jshunter_found_secrets_2.txt jshunter_found_secrets_3.txt  URLs_with_params.txt URLs_without_params.txt httpx_live_links_with_params_output.txt httpx_live_links_without_params_output.txt URLs_with_params_uniq.txt URLs_without_params_uniq.txt urls/artifacts/ 2>/dev/null
 
 # Move scanning results
-mv smap_results scans/ 2>/dev/null
-mv ips.txt webservers_ip_domain.txt scans/ 2>/dev/null
+mv orgs_list.txt shodan_org_raw_output.json shodan_ssl_subject_raw_output.json shodan/artifacts 2>/dev/null
+mv smap_results IPs_from_ssl_certs.txt IPs_belong_to_org.txt shodan/ 2>/dev/null
+mv IPs_from_open_sources.txt webservers_ip_domain.txt shodan/ 2>/dev/null
 
 # Move active enumeration results
 mv httpx_output.txt httpx/ 2>/dev/null
