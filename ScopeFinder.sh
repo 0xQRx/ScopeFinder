@@ -471,7 +471,7 @@ cat JS_URL_endpoints.txt | xargs -P10 -I{} bash -c 'url="{}"; hash=$(echo -n "$u
 # Active: searching for sensitive information in JS files with jshunter 
 echo "Searching for urls in JS files using linkfinder and xnLinkFinder..."
 mkdir linkfinder_output
-linkfinder -i ./downloaded_js_files --out-dir linkfinder_output --unknown-domain unknown_domain_URLs.txt
+linkfinder -i ./downloaded_js_files --out-dir linkfinder_output --unknown-domain unknown_domain_URLs.txt > /dev/null 2>&1
 xnLinkFinder -i ./downloaded_js_files -sp "$DOMAIN" -sf "$DOMAIN" -o linkfinder_output/xnLinkFinder_output.txt -op linkfinder_output/xnLinkFinder_parameters.txt -oo linkfinder_output/xnLinkFinder_out_of_scope_URLs.txt > /dev/null 2>&1
 
 echo "Searching for secrets with jshunter..."
