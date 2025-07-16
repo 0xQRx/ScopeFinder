@@ -339,7 +339,7 @@ if [ -s wordpress_sites.txt ]; then
 
     while read -r SUBDOMAIN; do
         OUTPUT_FILE="wpscan/wpscan_$(echo "$SUBDOMAIN" | sed 's|https\?://||g; s|/|_|g').txt"
-        wpscan -t 1 --api-token="$WPSCAN_API_KEY" --enumerate --throttle 2300 -o "$OUTPUT_FILE" -f cli-no-color --user-agent 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:136.0) Gecko/20100101 Firefox/136.0' --plugins-detection mixed --disable-tls-checks --update --url "$SUBDOMAIN"
+        wpscan -t 1 --api-token="$WPSCAN_API_KEY" --enumerate --throttle 2300 -o "$OUTPUT_FILE" -f cli-no-color --rua --plugins-detection mixed --disable-tls-checks --update --url "$SUBDOMAIN"
     done < wordpress_sites.txt
 else
     rm wordpress_sites.txt
