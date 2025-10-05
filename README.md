@@ -165,7 +165,7 @@ ScopeFinder example.com --proxy http://127.0.0.1:8080
 
 ```bash
 # Access container shell
-sf-run
+sf-run bash
 
 # Run specific tools directly
 sf-run subfinder -d example.com
