@@ -49,12 +49,26 @@ module_run() {
     dedupe_file "${DIRS[CLOUD]}/${FILES[CLOUD_SNI_DOMAINS]}"
 
     # Count results
-    local msft_count=0
     local sni_count=0
-    [[ -f "${DIRS[CLOUD]}/msftrecon.txt" ]] && msft_count=$(wc -l < "${DIRS[CLOUD]}/msftrecon.txt")
-    [[ -f "${DIRS[CLOUD]}/${FILES[CLOUD_SNI_DOMAINS]}" ]] && sni_count=$(wc -l < "${DIRS[CLOUD]}/${FILES[CLOUD_SNI_DOMAINS]}")
 
-    log_info "Found $msft_count Microsoft resources and $sni_count cloud SNI entries"
+    # Check for Microsoft recon results
+    if [[ -f "${DIRS[CLOUD]}/msftrecon.txt" ]]; then
+        if grep -q "Namespace Type: Unknown" "${DIRS[CLOUD]}/msftrecon.txt"; then
+            log_info "Microsoft cloud resources not detected (namespace unknown)"
+        else
+            log_info "Microsoft cloud resources detected during reconnaissance"
+        fi
+    else
+        log_info "Microsoft reconnaissance not performed or output missing"
+    fi
+
+    # Count SNI entries if file exists
+    if [[ -f "${DIRS[CLOUD]}/${FILES[CLOUD_SNI_DOMAINS]}" ]]; then
+        sni_count=$(wc -l < "${DIRS[CLOUD]}/${FILES[CLOUD_SNI_DOMAINS]}")
+    fi
+
+    # Report final cloud status
+    log_info "Found $sni_count cloud SNI entries"
 
     return 0
 }
