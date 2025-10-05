@@ -25,7 +25,7 @@ filter_in_scope_urls() {
     fi
 
     # Filter out Burp Suite proxy error pages
-    grep '200]' "$input_file" 2>/dev/null | grep -v "Burp Suite" | while read -r line; do
+    grep -E '\[.*200.*\]' "$input_file" 2>/dev/null | grep -v "Burp Suite" | while read -r line; do
         # Extract original URL and host
         local original_url=$(echo "$line" | awk '{print $1}')
         local original_host=$(echo "$original_url" | sed -E 's#^https?://([^/@]*@)?##' | cut -d/ -f1)
@@ -33,7 +33,7 @@ filter_in_scope_urls() {
         # Extract status codes
         local status_codes=$(echo "$line" | grep -oP '\[\K[^\]]+(?=\])' | head -n1)
 
-        if [[ "$status_codes" == "200" ]]; then
+        if [[ "$status_codes" =~ (^|,)200(,|$) ]]; then
             if [[ "$original_host" == "$DOMAIN" || "$original_host" == *.$DOMAIN ]]; then
                 echo "$original_url"
             fi
