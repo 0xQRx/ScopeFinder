@@ -3,7 +3,7 @@
 
 # Ordered list of modules - this determines execution order
 declare -a MODULES_ORDER=(
-    google_dorks_generator # Generates google dorks
+    "google_dorks_generator" # Generates google dorks
     "shodan_search"        # Shodan IP search (with org selection)
     "subdomain_enum"       # Subdomain enumeration (multiple sources)
     "ip_discovery"         # IP discovery from open sources
