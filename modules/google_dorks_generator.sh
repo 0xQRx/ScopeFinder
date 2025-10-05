@@ -13,7 +13,7 @@ module_run() {
     log_info "Generating Google dorks for: $DOMAIN"
 
     # Output file
-    local output_file="${DIRS[DORKS]}/google_dorks.txt"
+    local output_file="${DIRS[DORKS]}/google_dorks.md"
 
     # Clear previous results
     > "$output_file"
