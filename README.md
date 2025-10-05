@@ -1,25 +1,51 @@
-
 # ScopeFinder
 
-**ScopeFinder** is a comprehensive tool for automated domain enumeration.
+**ScopeFinder** is a comprehensive tool for automated domain enumeration with a modular architecture for flexibility and extensibility.
 
-# Docker Setup Instructions
+## 📋 Prerequisites
 
-## Prerequisites
-- Install Docker on your system.
+### Install Docker
 
-  **MacOS:**
-  https://www.docker.com/products/docker-desktop/#
+**MacOS:**
+https://www.docker.com/products/docker-desktop/
 
-  **Linux:**
-  ```
-  sudo apt update && sudo apt install -y docker.io && sudo systemctl enable docker --now && sudo usermod -aG docker $USER
-  ```
-
-## Build the Docker Image
-Run the following command to build the Docker image:
+**Linux:**
 ```bash
-docker build -t scopefinder .
+sudo apt update && sudo apt install -y docker.io && sudo systemctl enable docker --now && sudo usermod -aG docker $USER
+```
+
+## 🔨 Build Instructions
+
+1. Clone the repository:
+```bash
+git clone https://github.com/0xQRx/ScopeFinder.git
+cd ScopeFinder/
+```
+
+2. Build the Docker image:
+```bash
+./build.sh
+```
+
+The build script will automatically detect your architecture and provide setup instructions upon completion.
+
+## ⚙️ Configuration
+
+### API Keys Setup
+
+Add these environment variables to your shell configuration (`~/.bashrc` or `~/.zshrc`):
+
+```bash
+# SCOPEFINDER Configuration
+export URLSCAN_API_KEY="your_urlscan_api_key"
+export VIRUSTOTAL_API_KEY="your_virustotal_api_key"
+export SHODAN_API_KEY="your_shodan_api_key"
+export DEHASHED_API_KEY="your_dehashed_api_key"
+export DEHASHED_EMAIL="your_dehashed_email"
+export HUNTERIO_API_KEY="your_hunterio_api_key"
+export PDCP_API_KEY="your_projectdiscovery_api_key"
+export WPSCAN_API_KEY="your_wpscan_api_key"
+export SCOPEFINDER_PATH="/path/to/scopefinder"
 ```
 
 ## Config Files
@@ -43,149 +69,145 @@ Some integrated tools (e.g., Waymore, Subfinder) require specific configuration 
       - your_shodan_api_key
   ```
 
-## Setting Up Environment Variables
+### Shell Functions
 
-ScopeFinder uses environment variables for various API keys. Add the following to your shell configuration file (e.g., `~/.bashrc`, `~/.zshrc`):
-
-```bash
-export SHODAN_API_KEY=your_shodan_api_key
-export DEHASHED_EMAIL=your_dehashed_email
-export DEHASHED_API_KEY=your_dehashed_api_key
-export HUNTERIO_API_KEY=your_hunterio_api_key
-export PDCP_API_KEY=your_projectdiscovery_api_key
-export URLSCAN_API_KEY=your_urlscan_api_key
-export VIRUSTOTAL_API_KEY=your_virustotal_api_key
-export WPSCAN_API_KEY=your_wpscan_api_key
-
-
-export SCOPEFINDER_PATH=/path/to/scopefinder/folder
-
-alias ScopeFinder='docker run --rm -it \
-  -e URLSCAN_API_KEY="${URLSCAN_API_KEY}" \
-  -e VIRUSTOTAL_API_KEY="${VIRUSTOTAL_API_KEY}" \
-  -e SHODAN_API_KEY="${SHODAN_API_KEY}" \
-  -e DEHASHED_API_KEY="${DEHASHED_API_KEY}" \
-  -e HUNTERIO_API_KEY="${HUNTERIO_API_KEY}" \
-  -e PDCP_API_KEY="${PDCP_API_KEY}" \
-  -e WPSCAN_API_KEY="${WPSCAN_API_KEY}" \
-  -e PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin:/go/bin" \
-  -v "${SCOPEFINDER_PATH}/.config/:/root/.config" \
-  -v "${SCOPEFINDER_PATH}/ScopeFinder.sh:/opt/ScopeFinder.sh" \
-  -v "$(pwd):/output" \
-  scopefinder'
-```
-
-Reload your shell configuration:
+Add these convenience functions to your shell configuration:
 
 ```bash
-source ~/.zshrc
-# or
-source ~/.bashrc
-```
+# Run ScopeFinder
+ScopeFinder() {
+  # Check if scripts exist
+  if [[ ! -f "${SCOPEFINDER_PATH}/ScopeFinder.sh" ]]; then
+    echo "Error: ScopeFinder.sh not found at ${SCOPEFINDER_PATH}/ScopeFinder.sh"
+    echo "Please set SCOPEFINDER_PATH to the correct directory"
+    return 1
+  fi
 
-### Usage
-
-Run the tool with the alias:
-```bash
-ScopeFinder example.com
-```
-
-## Running Individual Tools from the Container
-
-To run an individual tool from the container, define the following function in your shell (e.g., in your .bashrc or .zshrc):
-
-```bash
-sf-run() {
   docker run --rm -it \
-    --entrypoint "" \
-    -e URLSCAN_API_KEY="${URLSCAN_API_KEY}" \
-    -e VIRUSTOTAL_API_KEY="${VIRUSTOTAL_API_KEY}" \
+    --entrypoint "/bin/bash" \
     -e SHODAN_API_KEY="${SHODAN_API_KEY}" \
     -e DEHASHED_API_KEY="${DEHASHED_API_KEY}" \
+    -e DEHASHED_EMAIL="${DEHASHED_EMAIL}" \
     -e HUNTERIO_API_KEY="${HUNTERIO_API_KEY}" \
-    -e PDCP_API_KEY="${PDCP_API_KEY}" \
     -e WPSCAN_API_KEY="${WPSCAN_API_KEY}" \
-    -e PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/go/bin:/go/bin" \
-    -v "${SCOPEFINDER_PATH}/.config/:/root/.config" \
+    -e URLSCAN_API_KEY="${URLSCAN_API_KEY}" \
+    -e VIRUSTOTAL_API_KEY="${VIRUSTOTAL_API_KEY}" \
+    -e PDCP_API_KEY="${PDCP_API_KEY}" \
     -v "${SCOPEFINDER_PATH}/ScopeFinder.sh:/opt/ScopeFinder.sh" \
+    -v "${SCOPEFINDER_PATH}/lib:/opt/lib" \
+    -v "${SCOPEFINDER_PATH}/modules:/opt/modules" \
+    -v "${SCOPEFINDER_PATH}/.config:/root/.config" \
     -v "$(pwd):/output" \
-    scopefinder "$@"
+    -w /output \
+    scopefinder \
+    -c "chmod +x /opt/ScopeFinder.sh && /opt/ScopeFinder.sh $*"
+}
+
+# Access container shell for running individual tools
+sf-run() {
+  docker run --rm -it \
+    --entrypoint "/bin/bash" \
+    -e SHODAN_API_KEY="${SHODAN_API_KEY}" \
+    -e DEHASHED_API_KEY="${DEHASHED_API_KEY}" \
+    -e DEHASHED_EMAIL="${DEHASHED_EMAIL}" \
+    -e HUNTERIO_API_KEY="${HUNTERIO_API_KEY}" \
+    -e WPSCAN_API_KEY="${WPSCAN_API_KEY}" \
+    -e URLSCAN_API_KEY="${URLSCAN_API_KEY}" \
+    -e VIRUSTOTAL_API_KEY="${VIRUSTOTAL_API_KEY}" \
+    -e PDCP_API_KEY="${PDCP_API_KEY}" \
+    -v "${SCOPEFINDER_PATH}/.config:/root/.config" \
+    -v "$(pwd):/output" \
+    -w /output \
+    scopefinder -c "$*"
 }
 ```
 
-You can then run tools from the container like this:
+Reload your shell configuration:
+```bash
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+## 📖 Usage
+
+### Basic Commands
 
 ```bash
+# Run full enumeration
+ScopeFinder example.com
+
+# Show help
+ScopeFinder --help
+
+# Check module completion status
+ScopeFinder example.com --status
+
+# List all available modules
+ScopeFinder --list-modules
+```
+
+### Advanced Options
+
+```bash
+# Re-run specific completed modules
+ScopeFinder example.com --replay wordpress_scan,secret_scan
+
+# Reset all checkpoints
+ScopeFinder example.com --reset
+
+# Dry run (show what would be executed)
+ScopeFinder example.com --dry-run
+
+# Run with proxy
+ScopeFinder example.com --proxy http://127.0.0.1:8080
+```
+
+### Running Individual Tools
+
+```bash
+# Access container shell
+sf-run
+
+# Run specific tools directly
 sf-run subfinder -d example.com
-sf-run trufflehog filesystem /output/target
-sf-run katana -u https://example.com
-sf-run bash          # Drop into an interactive shell
+sf-run nuclei -u https://example.com
+sf-run trufflehog filesystem /output/example.com
 ```
 
-## Output example
+## 🤝 Contributing
 
-All results will be saved in the current working directory from where tool was run.
+Contributions are welcome! To add a new module:
 
-Use the [ActiveScan Kicker](https://github.com/0xQRx/BurpPlugins/tree/master/ActiveScanKicker) Burp Suite extension to perform an audit on a URL prepared for Burp's active scanner.
+1. Create a new module file in `modules/`:
+```bash
+#!/bin/bash
+MODULE_NAME="my_module"
+MODULE_DESC="Description of my module"
 
-```
-├── STAGE_1
-│   ├── emails
-│   │   ├── dehashed_raw.json
-│   │   ├── emails.txt
-│   │   └── leaked_credential_pairs.txt
-│   ├── httpx
-│   │   ├── httpx_output.txt
-│   │   └── output
-│   │       ├── response
-│   │       └── screenshot
-│   ├── scans
-│   │   ├── smap_results
-│   │   │   ├── open_ports.gnmap
-│   │   │   ├── open_ports.nmap
-│   │   │   └── open_ports.xml
-│   │   ├── ips.txt
-│   │   └── webservers_ip_domain.txt
-│   ├── subdomains
-│   │   ├── subdomains.txt
-│   │   ├── subdomains_to_crawl.txt
-│   │   └── wildcard_subdomains.txt
-│   └── urls
-│       ├── URLs_with_params.txt
-│       ├── URLs_without_params.txt
-│       ├── URLs_with_params_uniq.txt
-│       ├── URLs_without_params_uniq.txt
-│       ├── artifacts
-│       │   ├── JS_URL_endpoints.txt
-│       │   ├── katana_crawled_URLS.txt
-│       ├── linkfinder_output
-│       │   ├── example_com.txt
-│       │   └── dev_example_com.txt
-│       ├── burp_scanner
-│       │   ├── BURP_GAP_URLs_with_params.txt
-│       │   ├── BURP_URLs_with_x8_custom_params.txt
-│       │   └── BURP_URLs_with_params.txt
-│       └── jshunter_found_secrets.txt
-└── STAGE_2
-    ├── CloudRecon_raw.json
-    ├── asn_ip_ranges.txt
-    ├── example-new.co
-    │   ├── httpx_output.txt
-    │   ├── output
-    │   │   ├── response
-    │   │   └── screenshot
-    │   └── subdomains.txt
-    ├── example.com
-    │   ├── httpx_output.txt
-    │   ├── output
-    │   │   ├── response
-    │   │   └── screenshot
-    │   └── subdomains.txt
-    ├── smap_results
-    │   ├── open_ports.gnmap
-    │   ├── open_ports.nmap
-    │   └── open_ports.xml
-    ├── top_level_domains.txt
-    └── webservers_ip_domain.txt
+module_init() {
+    # Initialize directories
+}
+
+module_run() {
+    # Main logic
+}
+
+module_cleanup() {
+    # Cleanup on failure
+}
 ```
 
+2. Register in `lib/registry.sh`:
+```bash
+declare -a MODULES_ORDER=(
+    # ... existing modules ...
+    "my_module"
+)
+```
+
+## 🙏 Acknowledgments
+
+ScopeFinder integrates many excellent tools from the security community. Special thanks to all tool authors and contributors.
+
+## 🔗 Integration
+
+Use the [ActiveScan Kicker](https://github.com/0xQRx/BurpPlugins/tree/master/ActiveScanKicker) Burp Suite extension to perform audits on URLs prepared for Burp's active scanner.

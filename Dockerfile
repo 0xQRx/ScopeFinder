@@ -1,97 +1,311 @@
-# Use the official Debian base image
-FROM debian:bookworm
+# ============================================
+# ScopeFinder 2.0 - Enhanced Dockerfile
+# ============================================
+# Multi-architecture support for amd64 and arm64
+# Optimized for size and build speed
+# ============================================
 
-# Set environment variables to avoid interactive prompts during installation
-ENV DEBIAN_FRONTEND=noninteractive
+# Use slim base for smaller image
+FROM debian:bookworm-slim
 
-# Update and install necessary packages
-RUN apt update && apt install -y \
-    jq wget curl unzip gcc ruby git make xdg-utils pkg-config libssl-dev \
-    libnss3 libxss1 libatk1.0-0 libatk-bridge2.0-0 libdrm2 libx11-xcb1 \
-    libxcomposite1 libxcursor1 libxdamage1 libxi6 libxtst6 libasound2 \
-    libpangocairo-1.0-0 libcups2 libxkbcommon0 fonts-liberation libgbm-dev build-essential libcurl4-openssl-dev libxml2 libxml2-dev libxslt1-dev ruby-dev  libgmp-dev zlib1g-dev \
-    libpango1.0-0 libjpeg-dev libxrandr2 pipx dnsutils ca-certificates && \
-    apt clean && rm -rf /var/lib/apt/lists/*
+# Build arguments for multi-architecture support
+ARG TARGETPLATFORM
+ARG TARGETARCH
+ARG TARGETVARIANT
 
-# Install Golang (required for the tools)
+# Environment variables
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    TZ=UTC
+
+# ============================================
+# LAYER 1: Essential build tools
+# ============================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    apt-utils \
+    ca-certificates \
+    curl \
+    wget \
+    git \
+    make \
+    gcc \
+    g++ \
+    build-essential \
+    pkg-config \
+    unzip \
+    xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================
+# LAYER 2: Language runtimes and utilities
+# ============================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ruby \
+    ruby-dev \
+    python3 \
+    python3-pip \
+    pipx \
+    jq \
+    dnsutils \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================
+# LAYER 3: Chrome/Chromium dependencies
+# ============================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 \
+    libxss1 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libdrm2 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxi6 \
+    libxtst6 \
+    libasound2 \
+    libpangocairo-1.0-0 \
+    libpango1.0-0 \
+    libcups2 \
+    libxkbcommon0 \
+    fonts-liberation \
+    libgbm-dev \
+    libxrandr2 \
+    libjpeg-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================
+# LAYER 4: Development libraries
+# ============================================
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl-dev \
+    libcurl4-openssl-dev \
+    libxml2 \
+    libxml2-dev \
+    libxslt1-dev \
+    libgmp-dev \
+    zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# ============================================
+# Install Golang with multi-arch support
+# ============================================
 ENV GO_VERSION=1.23.5
 
-# Detect architecture and install the correct Go version
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; \
-    elif [ "$ARCH" = "aarch64" ]; then ARCH="arm64"; \
-    else echo "Unsupported architecture: $ARCH"; exit 1; fi && \
-    \
-    # Construct the Go download URL dynamically
-    GO_TARBALL="go${GO_VERSION}.linux-${ARCH}.tar.gz" && \
-    GO_URL="https://go.dev/dl/${GO_TARBALL}" && \
-    \
-    # Download and install Go
-    wget "$GO_URL" && \
-    tar -C /usr/local -xzf "$GO_TARBALL" && \
-    rm "$GO_TARBALL"
+RUN set -ex && \
+    # Detect architecture if not set
+    if [ -z "${TARGETARCH}" ]; then \
+        TARGETARCH="$(dpkg --print-architecture)"; \
+    fi && \
+    case "${TARGETARCH}" in \
+        amd64|arm64) \
+            GO_TARBALL="go${GO_VERSION}.linux-${TARGETARCH}.tar.gz" \
+            ;; \
+        *) \
+            echo "Unsupported architecture: ${TARGETARCH}" && exit 1 \
+            ;; \
+    esac && \
+    wget -q "https://go.dev/dl/${GO_TARBALL}" && \
+    tar -C /usr/local -xzf "${GO_TARBALL}" && \
+    rm "${GO_TARBALL}" && \
+    /usr/local/go/bin/go version
 
+# ============================================
 # Install Rust
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+# ============================================
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
 
-# Install headless chromium
-RUN wget https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1131003/chrome-linux.zip && \
-    mkdir -p /root/.cache/rod/browser/chromium-1131003 && \
-    unzip chrome-linux.zip && \
-    rm chrome-linux.zip && \
-    mv chrome-linux/* /root/.cache/rod/browser/chromium-1131003/ && \
-    rm -rf chrome-linux
+# ============================================
+# Install Chromium with multi-arch support
+# ============================================
+RUN set -ex && \
+    # Detect architecture if not set
+    if [ -z "${TARGETARCH}" ]; then \
+        TARGETARCH="$(dpkg --print-architecture)"; \
+    fi && \
+    case "${TARGETARCH}" in \
+        amd64) \
+            CHROMIUM_VERSION="1131003" && \
+            CHROMIUM_URL="https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/${CHROMIUM_VERSION}/chrome-linux.zip" \
+            ;; \
+        arm64) \
+            CHROMIUM_VERSION="270195" && \
+            CHROMIUM_URL="https://storage.googleapis.com/chromium-browser-snapshots/Linux_ARM_Cross-Compile/${CHROMIUM_VERSION}/chrome-linux.zip" \
+            ;; \
+        *) \
+            echo "Unsupported architecture: ${TARGETARCH}" && exit 1 \
+            ;; \
+    esac && \
+    wget -q "${CHROMIUM_URL}" && \
+    mkdir -p /root/.cache/rod/browser/chromium-${CHROMIUM_VERSION} && \
+    unzip -q chrome-linux.zip && \
+    mv chrome-linux/* /root/.cache/rod/browser/chromium-${CHROMIUM_VERSION}/ && \
+    rm -rf chrome-linux.zip chrome-linux && \
+    echo "Chromium ${CHROMIUM_VERSION} installed for ${TARGETARCH}"
 
-# Set Golang environment variables
-ENV PATH="/root/.cargo/bin:/usr/local/go/bin:/root/.local/bin:$PATH"
-ENV GOBIN="/root/go/bin"
-ENV PATH="$PATH:$GOBIN"
-
-# Download and install TruffleHog prebuilt binary
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; \
-    elif [ "$ARCH" = "aarch64" ]; then ARCH="arm64"; \
-    else echo "Unsupported architecture: $ARCH"; exit 1; fi && \
-    \
-    VERSION="3.88.20" && \
-    FILENAME="trufflehog_${VERSION}_linux_${ARCH}.tar.gz" && \
-    URL="https://github.com/trufflesecurity/trufflehog/releases/download/v${VERSION}/${FILENAME}" && \
-    \
-    wget "$URL" && \
-    tar -xzf "$FILENAME" && \
-    mv trufflehog /usr/local/bin/trufflehog && \
+# ============================================
+# Install TruffleHog with multi-arch support
+# ============================================
+ARG TRUFFLEHOG_VERSION=3.90.8
+RUN set -ex && \
+    # Detect architecture if not set
+    if [ -z "${TARGETARCH}" ]; then \
+        TARGETARCH="$(dpkg --print-architecture)"; \
+    fi && \
+    case "${TARGETARCH}" in \
+        amd64|arm64) \
+            FILENAME="trufflehog_${TRUFFLEHOG_VERSION}_linux_${TARGETARCH}.tar.gz" \
+            ;; \
+        *) \
+            echo "Unsupported architecture: ${TARGETARCH}" && exit 1 \
+            ;; \
+    esac && \
+    wget -q "https://github.com/trufflesecurity/trufflehog/releases/download/v${TRUFFLEHOG_VERSION}/${FILENAME}" && \
+    tar -xzf "${FILENAME}" && \
+    mv trufflehog /usr/local/bin/ && \
     chmod +x /usr/local/bin/trufflehog && \
-    rm "$FILENAME"
+    rm "${FILENAME}" && \
+    trufflehog --version
 
-# Install the required tools using Go, cargo and pipx 
-RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
+# ============================================
+# Install public Go tools (using @latest as requested)
+# ============================================
+RUN set -ex && \
+    export PATH="/usr/local/go/bin:$PATH" && \
+    export GOBIN="/root/go/bin" && \
+    go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest && \
     go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest && \
     go install -v github.com/s0md3v/smap/cmd/smap@latest && \
-    #go install github.com/BishopFox/jsluice/cmd/jsluice@latest && \
-    go install github.com/incogbyte/shosubgo@latest && \
-    CGO_ENABLED=1 go install github.com/projectdiscovery/katana/cmd/katana@latest && \
-    go install github.com/g0ldencybersec/CloudRecon@latest && \
-    go install github.com/projectdiscovery/asnmap/cmd/asnmap@latest && \
+    go install -v github.com/incogbyte/shosubgo@latest && \
+    go install -v github.com/g0ldencybersec/CloudRecon@latest && \
+    go install -v github.com/projectdiscovery/asnmap/cmd/asnmap@latest && \
+    echo "Public Go tools installed"
+
+# ============================================
+# Install katana (requires CGO)
+# ============================================
+RUN set -ex && \
+    export PATH="/usr/local/go/bin:$PATH" && \
+    export GOBIN="/root/go/bin" && \
+    CGO_ENABLED=1 go install -v github.com/projectdiscovery/katana/cmd/katana@latest && \
+    echo "Katana installed"
+
+# ============================================
+# Install private Go tools (with GOPRIVATE)
+# ============================================
+RUN set -ex && \
+    export PATH="/usr/local/go/bin:$PATH" && \
+    export GOBIN="/root/go/bin" && \
+    GOPRIVATE=github.com/0xQRx go install -v github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@main && \
+    GOPRIVATE=github.com/0xQRx go install -v github.com/0xQRx/jshunter@main && \
+    GOPRIVATE=github.com/0xQRx go install -v github.com/0xQRx/godigger@main && \
+    GOPRIVATE=github.com/0xQRx go install -v github.com/0xQRx/URLDedup/cmd/urldedup@main && \
+    echo "Private Go tools installed"
+
+# ============================================
+# Install Python tools
+# ============================================
+RUN set -ex && \
+    export PATH="/root/.local/bin:$PATH" && \
     pipx install git+https://github.com/xnl-h4ck3r/waymore.git && \
     pipx install git+https://github.com/0xQRx/LinkFinder.git --include-deps && \
-    pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git && \ 
-    pipx install git+https://github.com/0xQRx/msftrecon.git && \ 
-    GOPRIVATE=github.com/0xQRx/crtsh-tool go install github.com/0xQRx/crtsh-tool/cmd/crtsh-tool@main && \
-    GOPRIVATE=github.com/0xQRx/jshunter go install -v github.com/0xQRx/jshunter@main && \
-    GOPRIVATE=github.com/0xQRx/godigger go install -v github.com/0xQRx/godigger@main && \
-    GOPRIVATE=github.com/0xQRx/URLDedup go install -v github.com/0xQRx/URLDedup/cmd/urldedup@main && \
-    gem install wpscan && \
+    pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git && \
+    pipx install git+https://github.com/0xQRx/msftrecon.git && \
     pipx install uro && \
-    cargo install x8
+    echo "Python tools installed"
 
+# ============================================
+# Install Ruby tools
+# ============================================
+RUN gem install wpscan && \
+    wpscan --version && \
+    echo "Ruby tools installed"
+
+# ============================================
+# Install Rust tools
+# ============================================
+RUN set -ex && \
+    export PATH="/root/.cargo/bin:$PATH" && \
+    cargo install x8 && \
+    echo "Rust tools installed"
+
+# ============================================
 # Download wordlists
-RUN mkdir -p /wordlists && cd /wordlists && wget https://raw.githubusercontent.com/danielmiessler/SecLists/refs/heads/master/Discovery/Web-Content/burp-parameter-names.txt
+# ============================================
+RUN mkdir -p /wordlists && \
+    cd /wordlists && \
+    wget -q https://raw.githubusercontent.com/danielmiessler/SecLists/refs/heads/master/Discovery/Web-Content/burp-parameter-names.txt && \
+    echo "Wordlists downloaded"
 
-# Create a directory for output
-RUN mkdir /output
+# ============================================
+# Set up final environment variables and PATH
+# ============================================
+ENV PATH="/usr/local/go/bin:/root/go/bin:/root/.cargo/bin:/root/.local/bin:$PATH" \
+    GOBIN="/root/go/bin" \
+    GO111MODULE=on \
+    GOPROXY=https://proxy.golang.org,direct \
+    GOPRIVATE=github.com/0xQRx
 
-# Set working directory to /output
+# ============================================
+# Verify all tools are installed
+# ============================================
+RUN set -ex && \
+    echo "=== Verifying tool installation ===" && \
+    subfinder -version 2>/dev/null | head -1 && \
+    httpx -version 2>/dev/null | head -1 && \
+    katana -version 2>/dev/null | head -1 && \
+    asnmap -version 2>/dev/null | head -1 && \
+    smap -h 2>&1 | head -1 && \
+    which crtsh-tool && \
+    which jshunter && \
+    which godigger && \
+    which urldedup && \
+    which waymore && \
+    which linkfinder && \
+    which xnLinkFinder && \
+    which msftrecon && \
+    which uro && \
+    which shosubgo && \
+    which CloudRecon && \
+    wpscan --version | head -1 && \
+    x8 --version && \
+    trufflehog --version && \
+    echo "=== All tools verified successfully ==="
+
+# ============================================
+# Create output directory
+# ============================================
+RUN mkdir -p /output
+
+# ============================================
+# Set working directory
+# ============================================
 WORKDIR /output
 
-# Entry point for the container
-ENTRYPOINT ["/opt/ScopeFinder.sh"]
+# ============================================
+# Set environment for ScopeFinder
+# ============================================
+ENV SCRIPT_DIR=/opt \
+    DISABLE_UPDATE_CHECK=true \
+    GOGC=50
+
+# ============================================
+# Metadata labels
+# ============================================
+LABEL maintainer="ScopeFinder" \
+      version="2.0" \
+      description="ScopeFinder 2.0 - Modular reconnaissance framework" \
+      architecture="${TARGETARCH}"
+
+# ============================================
+# Health check
+# ============================================
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD subfinder -version && httpx -version && echo "Health check passed" || exit 1
+
+# ============================================
+# Entry point - default to bash, will be overridden when mounting scripts
+# ============================================
+ENTRYPOINT ["/bin/bash"]

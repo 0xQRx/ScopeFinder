@@ -4,4 +4,7 @@
 *.txt
 *.config/waymore/results/*
 *.config/go
+*.config/chromium/*
+.claude
 ScopeFinder-dev.sh
+ScopeFinder2.0/.config
