@@ -35,7 +35,7 @@ module_run() {
     fi
 
     # Combine all xnLinkFinder outputs to linkfinder_output directory
-    cat "${DIRS[URLS_ARTIFACTS]}"/xnLinkFinder_*_output.txt > "${DIRS[URLS_LINKFINDER]}/xnLinkFinder_output.txt" 2>/dev/null || true
+    cat "${DIRS[URLS_ARTIFACTS]}"/xnLinkFinder_*_output.txt | grep -v 'katana_downloaded_data' > "${DIRS[URLS_LINKFINDER]}/xnLinkFinder_output.txt" 2>/dev/null || true
     cat "${DIRS[URLS_ARTIFACTS]}"/xnLinkFinder_*_parameters.txt > "${DIRS[URLS_LINKFINDER]}/xnLinkFinder_parameters.txt" 2>/dev/null || true
     cat "${DIRS[URLS_ARTIFACTS]}"/xnLinkFinder_*_out_of_scope.txt > "${DIRS[URLS_LINKFINDER]}/xnLinkFinder_out_of_scope_urls.txt" 2>/dev/null || true
 
