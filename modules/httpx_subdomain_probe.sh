@@ -56,7 +56,7 @@ module_run() {
     # Extract live subdomains (200 status codes)
     if [[ -f "${DIRS[HTTPX]}/${FILES[HTTPX_OUTPUT]}" ]]; then
         # Filter out any Burp Suite proxy error pages that might have slipped through
-        grep '200]' "${DIRS[HTTPX]}/${FILES[HTTPX_OUTPUT]}" | grep -v "Burp Suite" | while read -r line; do
+        grep -E '\[.*200.*\]' "${DIRS[HTTPX]}/${FILES[HTTPX_OUTPUT]}" | grep -v "Burp Suite" | while read -r line; do
             # Extract original URL and subdomain
             original_url=$(echo "$line" | awk '{print $1}')
             original_subdomain=$(echo "$original_url" | sed -E 's#^https?://([^/@]*@)?##' | cut -d/ -f1)
@@ -64,7 +64,7 @@ module_run() {
             # Extract status codes
             status_codes=$(echo "$line" | grep -oP '\[\K[^\]]+(?=\])' | head -n1)
 
-            if [[ "$status_codes" == "200" ]]; then
+            if [[ "$status_codes" =~ (^|,)200(,|$) ]]; then
                 if [[ "$original_subdomain" == "$DOMAIN" || "$original_subdomain" == *.$DOMAIN ]]; then
                     echo "$original_subdomain"
                 fi
