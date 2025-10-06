@@ -30,12 +30,12 @@ module_init() {
 module_run() {
     log_info "Processing JavaScript files"
 
-    # Filter out common libraries - your exact filter preserved
+    # Filter out common libraries
     local filter_pattern='jquery|jquery-ui|jquery\.min|react|react-dom|angular|angularjs|vue|vue\.min|ember|backbone|underscore|lodash|moment|dayjs|d3|three|chartjs|chart\.js|highcharts|gsap|animejs|popper|bootstrap|semantic-ui|materialize|tailwind|axios|fetch|zepto|modernizr|requirejs|next|nuxt|svelte|lit|redux|mobx|handlebars|mustache|express|rxjs|fastify|inertia|meteor|mithril|knockout|ractive|canjs|alpinejs|solid-js|preact|pixi|leaflet|openlayers|fullcalendar|zurb|enyo|fabric|svg\.js|velocity|vivus|particles\.js|zxcvbn|quill|tinymce|ckeditor|codemirror|highlight|mathjax|pdfjs|videojs|plyr|jwplayer|soundjs|howler|createjs|p5|stats\.js|tracking\.js|fancybox|lightbox|swiper|slick-carousel|flickity|lazysizes|barba|scrollmagic|locomotive|skrollr|headroom|turbolinks|stimulus|alpine\.js|instantclick|htmx|wix|avada|fusion|awb|modernizr|thunderbolt|Blazor|gtm\.js|blazor|win\.js|wp-*'
 
     grep -vE "$filter_pattern" "$TEMP_JS_FILE" > "${DIRS[JS_ENDPOINTS]}/${FILES[JS_ENDPOINTS]}" 2>/dev/null || true
 
-    # Deduplicate with uro if available
+    # Deduplicate with uro
     if command -v uro &> /dev/null; then
         uro -i "${DIRS[JS_ENDPOINTS]}/${FILES[JS_ENDPOINTS]}" > "${DIRS[JS_ENDPOINTS]}/js_endpoints_dedup.txt"
         mv "${DIRS[JS_ENDPOINTS]}/js_endpoints_dedup.txt" "${DIRS[JS_ENDPOINTS]}/${FILES[JS_ENDPOINTS]}"
@@ -43,7 +43,7 @@ module_run() {
         dedupe_file "${DIRS[JS_ENDPOINTS]}/${FILES[JS_ENDPOINTS]}"
     fi
 
-    # Download JS files - your exact command preserved
+    # Download JS files
     local js_count=$(wc -l < "${DIRS[JS_ENDPOINTS]}/${FILES[JS_ENDPOINTS]}" 2>/dev/null || echo "0")
     if [[ "$js_count" -gt 0 ]]; then
         log_info "Downloading $js_count JavaScript files..."
