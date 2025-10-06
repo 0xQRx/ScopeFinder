@@ -53,31 +53,55 @@ module_run() {
     fi
     [[ -d "output" ]] && rm -rf output
 
-    # Extract live subdomains (200 status codes)
+    # Extract subdomains based on response status
     if [[ -f "${DIRS[HTTPX]}/${FILES[HTTPX_OUTPUT]}" ]]; then
+        # Clear output files
+        > "${DIRS[SUBDOMAINS]}/${FILES[SUBDOMAINS_200]}"
+        > "${DIRS[SUBDOMAINS]}/${FILES[REDIRECTED_TO_SUBDOMAINS]}"
+        > "${DIRS[SUBDOMAINS]}/${FILES[LIVE_SUBDOMAINS]}"
+
         # Filter out any Burp Suite proxy error pages that might have slipped through
-        grep -E '\[.*200.*\]' "${DIRS[HTTPX]}/${FILES[HTTPX_OUTPUT]}" | grep -v "Burp Suite" | while read -r line; do
+        grep -E '\[.*\]' "${DIRS[HTTPX]}/${FILES[HTTPX_OUTPUT]}" | grep -v "Burp Suite" | while read -r line; do
             # Extract original URL and subdomain
             original_url=$(echo "$line" | awk '{print $1}')
             original_subdomain=$(echo "$original_url" | sed -E 's#^https?://([^/@]*@)?##' | cut -d/ -f1)
 
+            # Skip if not in our domain
+            if [[ ! "$original_subdomain" == "$DOMAIN" && ! "$original_subdomain" == *.$DOMAIN ]]; then
+                continue
+            fi
+
+            # Add to live_subdomains.txt (all responsive subdomains)
+            echo "$original_subdomain" >> "${DIRS[SUBDOMAINS]}/${FILES[LIVE_SUBDOMAINS]}"
+
             # Extract status codes
             status_codes=$(echo "$line" | grep -oP '\[\K[^\]]+(?=\])' | head -n1)
 
-            if [[ "$status_codes" =~ (^|,)200(,|$) ]]; then
-                if [[ "$original_subdomain" == "$DOMAIN" || "$original_subdomain" == *.$DOMAIN ]]; then
-                    echo "$original_subdomain"
-                fi
-            else
+            if [[ "$status_codes" =~ (^|,)30[0-9](,|$) ]]; then
+                # Check if it's a redirect
                 final_url=$(echo "$line" | grep -oP '\[https?://[^\]]+\]' | tail -n1 | tr -d '[]')
-                final_subdomain=$(echo "$final_url" | sed -E 's#^https?://([^/@]*@)?##' | cut -d/ -f1)
+                if [[ -n "$final_url" ]]; then
+                    final_subdomain=$(echo "$final_url" | sed -E 's#^https?://([^/@]*@)?##' | cut -d/ -f1)
 
-                if [[ ( "$original_subdomain" == "$DOMAIN" || "$original_subdomain" == *.$DOMAIN ) && \
-                      ( "$final_subdomain" == "$DOMAIN" || "$final_subdomain" == *.$DOMAIN ) ]]; then
-                    echo "$final_subdomain"
+                    if [[ "$final_subdomain" == "$DOMAIN" || "$final_subdomain" == *.$DOMAIN ]]; then
+                        # Redirected but still in our domain - add to 200_subdomains.txt
+                        echo "$final_subdomain" >> "${DIRS[SUBDOMAINS]}/${FILES[SUBDOMAINS_200]}"
+                    else
+                        # Redirected to external domain - add mapping to redirected_to_subdomains.txt
+                        echo "$original_subdomain -> $final_subdomain" >> "${DIRS[SUBDOMAINS]}/${FILES[REDIRECTED_TO_SUBDOMAINS]}"
+                    fi
                 fi
+            elif [[ "$status_codes" == "200" ]]; then
+                # Direct 200 response (no redirect) - add to 200_subdomains.txt
+                echo "$original_subdomain" >> "${DIRS[SUBDOMAINS]}/${FILES[SUBDOMAINS_200]}"
             fi
-        done | sort -u > "${DIRS[SUBDOMAINS]}/${FILES[LIVE_SUBDOMAINS]}" || true
+            # If it's 404, 500, etc., it's only in live_subdomains.txt
+        done
+
+        # Deduplicate files
+        sort -u "${DIRS[SUBDOMAINS]}/${FILES[SUBDOMAINS_200]}" -o "${DIRS[SUBDOMAINS]}/${FILES[SUBDOMAINS_200]}"
+        sort -u "${DIRS[SUBDOMAINS]}/${FILES[REDIRECTED_TO_SUBDOMAINS]}" -o "${DIRS[SUBDOMAINS]}/${FILES[REDIRECTED_TO_SUBDOMAINS]}"
+        sort -u "${DIRS[SUBDOMAINS]}/${FILES[LIVE_SUBDOMAINS]}" -o "${DIRS[SUBDOMAINS]}/${FILES[LIVE_SUBDOMAINS]}"
 
         # Extract WordPress sites only if found
         if grep -qiE '\[.*wordpress.*\]' "${DIRS[HTTPX]}/${FILES[HTTPX_OUTPUT]}" 2>/dev/null; then

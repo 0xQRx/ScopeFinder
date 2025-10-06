@@ -14,6 +14,7 @@ declare -a MODULES_ORDER=(
     "wordpress_scan"       # WordPress detection and scanning
     "katana_web_crawl"            # Web crawling with katana
     "xnLinkFinder_url_extract"          # URL extraction from downloaded content
+    "extracted_inline_scripts"     # Extract inline scripts with dynamic URLs
     "extract_params"       # URL sorting and parameter extraction
     "httpx_url_probe"            # URL deduplication and live probing
     "js_download"          # JavaScript file download

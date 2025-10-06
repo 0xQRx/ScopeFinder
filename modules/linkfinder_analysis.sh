@@ -15,6 +15,7 @@ module_init() {
 
     # Create output directories only if we have JS files to analyze
     mkdir -p "${DIRS[URLS_LINKFINDER]}"
+    mkdir -p "${DIRS[URLS_LINKFINDER]}/xnLinkFinder"
 }
 
 module_run() {
@@ -43,9 +44,14 @@ module_run() {
         log_info "Running xnLinkFinder on JavaScript files..."
         xnLinkFinder -i "$JS_DIR" \
                      -sp "$DOMAIN" -sf "$DOMAIN" \
-                     -o "${DIRS[URLS_LINKFINDER]}/xnLinkFinder_js_output.txt" \
-                     -op "${DIRS[URLS_LINKFINDER]}/xnLinkFinder_js_parameters.txt" \
-                     -oo "${DIRS[URLS_LINKFINDER]}/xnLinkFinder_js_out_of_scope_urls.txt" > /dev/null 2>&1 || true
+                     -o "${DIRS[URLS_LINKFINDER]}/xnLinkFinder/xnLinkFinder_js_output.txt" \
+                     -op "${DIRS[URLS_LINKFINDER]}/xnLinkFinder/xnLinkFinder_js_parameters.txt" \
+                     -oo "${DIRS[URLS_LINKFINDER]}/xnLinkFinder/xnLinkFinder_js_out_of_scope_urls.txt" > /dev/null 2>&1 || true
+
+        # Deduplicate xnLinkFinder files
+        for file in "${DIRS[URLS_LINKFINDER]}/xnLinkFinder"/*.txt; do
+            [[ -f "$file" ]] && dedupe_file "$file"
+        done
     fi
 
     # Count results

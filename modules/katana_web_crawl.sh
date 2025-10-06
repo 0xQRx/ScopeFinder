@@ -9,11 +9,11 @@ module_init() {
     mkdir -p "${DIRS[URLS]}"
     mkdir -p "${DIRS[KATANA_DATA]}"
 
-    # Get live subdomains from service probe step
-    LIVE_SUBS="${DIRS[SUBDOMAINS]}/${FILES[LIVE_SUBDOMAINS]}"
+    # Get 200 status subdomains from service probe step (crawlable content)
+    LIVE_SUBS="${DIRS[SUBDOMAINS]}/${FILES[SUBDOMAINS_200]}"
 
     if ! check_file "$LIVE_SUBS"; then
-        log_warn "No live subdomains found from previous step"
+        log_warn "No subdomains with 200 status found from previous step"
         touch "$LIVE_SUBS"  # Create empty file to continue
     fi
 }
@@ -22,11 +22,11 @@ module_run() {
     local input_count=$(wc -l < "$LIVE_SUBS" 2>/dev/null || echo "0")
 
     if [[ "$input_count" -eq 0 ]]; then
-        log_warn "No live subdomains to crawl"
+        log_warn "No subdomains with crawlable content (200 status) to crawl"
         return 0
     fi
 
-    log_info "Crawling $input_count live subdomains with Katana..."
+    log_info "Crawling $input_count subdomains with 200 status using Katana..."
 
     # Get proxy flag
     local proxy_flag=$(get_proxy_flag "katana")

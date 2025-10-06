@@ -38,7 +38,7 @@ module_run() {
         # Also extract all IPs
         if [[ -f "${DIRS[SCANS_SMAP]}/open_ports.gnmap" ]]; then
             grep "Host:" "${DIRS[SCANS_SMAP]}/open_ports.gnmap" | \
-                awk '{print $2}' | sort -u > "${DIRS[SCANS]}/ips.txt" || true
+                awk '{print $2}' | sort -u > "${DIRS[SCANS]}/${FILES[IPS_FROM_SMAP]}" || true
         fi
     else
         log_warn "No hosts to scan"

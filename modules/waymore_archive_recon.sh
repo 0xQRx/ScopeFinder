@@ -23,29 +23,29 @@ module_run() {
     # Run waymore - download archives to waymore_data directory
     log_info "Running waymore (this may take several hours)..."
     waymore -i "$DOMAIN" -mode B -f \
-            -oU "${DIRS[URLS_ARTIFACTS]}/collected_urls.txt" \
+            -oU "${DIRS[URLS_ARTIFACTS]}/waymore_collected_urls.txt" \
             -url-filename \
             -oR "${DIRS[WAYMORE_DATA]}" > /dev/null 2>&1 || true
 
     # Deduplicate URLs
-    dedupe_file "${DIRS[URLS_ARTIFACTS]}/collected_urls.txt"
+    dedupe_file "${DIRS[URLS_ARTIFACTS]}/waymore_collected_urls.txt"
 
     # Separate URLs with and without parameters
-    if [[ -f "${DIRS[URLS_ARTIFACTS]}/collected_urls.txt" ]]; then
-        grep -oP 'https?://[^\s"]+\?[^\s"]*' "${DIRS[URLS_ARTIFACTS]}/collected_urls.txt" > "${DIRS[URLS_ARTIFACTS]}/${FILES[URLS_WITH_PARAMS]}" 2>/dev/null || true
-        grep -oP 'https?://[^\s"]+' "${DIRS[URLS_ARTIFACTS]}/collected_urls.txt" | grep -v '\?' > "${DIRS[URLS_ARTIFACTS]}/${FILES[URLS_WITHOUT_PARAMS]}" 2>/dev/null || true
+    if [[ -f "${DIRS[URLS_ARTIFACTS]}/waymore_collected_urls.txt" ]]; then
+        grep -oP 'https?://[^\s"]+\?[^\s"]*' "${DIRS[URLS_ARTIFACTS]}/waymore_collected_urls.txt" > "${DIRS[URLS_ARTIFACTS]}/${FILES[WAYMORE_URLS_WITH_PARAMS]}" 2>/dev/null || true
+        grep -oP 'https?://[^\s"]+' "${DIRS[URLS_ARTIFACTS]}/waymore_collected_urls.txt" | grep -v '\?' > "${DIRS[URLS_ARTIFACTS]}/${FILES[WAYMORE_URLS_WITHOUT_PARAMS]}" 2>/dev/null || true
 
-        dedupe_file "${DIRS[URLS_ARTIFACTS]}/${FILES[URLS_WITH_PARAMS]}"
-        dedupe_file "${DIRS[URLS_ARTIFACTS]}/${FILES[URLS_WITHOUT_PARAMS]}"
+        dedupe_file "${DIRS[URLS_ARTIFACTS]}/${FILES[WAYMORE_URLS_WITH_PARAMS]}"
+        dedupe_file "${DIRS[URLS_ARTIFACTS]}/${FILES[WAYMORE_URLS_WITHOUT_PARAMS]}"
     fi
 
     # Count results
     local total_urls=0
     local with_params=0
     local without_params=0
-    [[ -f "${DIRS[URLS_ARTIFACTS]}/collected_urls.txt" ]] && total_urls=$(wc -l < "${DIRS[URLS_ARTIFACTS]}/collected_urls.txt")
-    [[ -f "${DIRS[URLS_ARTIFACTS]}/${FILES[URLS_WITH_PARAMS]}" ]] && with_params=$(wc -l < "${DIRS[URLS_ARTIFACTS]}/${FILES[URLS_WITH_PARAMS]}")
-    [[ -f "${DIRS[URLS_ARTIFACTS]}/${FILES[URLS_WITHOUT_PARAMS]}" ]] && without_params=$(wc -l < "${DIRS[URLS_ARTIFACTS]}/${FILES[URLS_WITHOUT_PARAMS]}")
+    [[ -f "${DIRS[URLS_ARTIFACTS]}/waymore_collected_urls.txt" ]] && total_urls=$(wc -l < "${DIRS[URLS_ARTIFACTS]}/waymore_collected_urls.txt")
+    [[ -f "${DIRS[URLS_ARTIFACTS]}/${FILES[WAYMORE_URLS_WITH_PARAMS]}" ]] && with_params=$(wc -l < "${DIRS[URLS_ARTIFACTS]}/${FILES[WAYMORE_URLS_WITH_PARAMS]}")
+    [[ -f "${DIRS[URLS_ARTIFACTS]}/${FILES[WAYMORE_URLS_WITHOUT_PARAMS]}" ]] && without_params=$(wc -l < "${DIRS[URLS_ARTIFACTS]}/${FILES[WAYMORE_URLS_WITHOUT_PARAMS]}")
 
     log_info "Collected $total_urls total URLs ($with_params with params, $without_params without)"
 

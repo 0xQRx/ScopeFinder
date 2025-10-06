@@ -13,14 +13,17 @@ module_init() {
     TEMP_JS_FILE="${DIRS[URLS_ARTIFACTS]}/js_urls_temp.txt"
     > "$TEMP_JS_FILE"
 
-    # Get URLs from archive step
-    if [[ -f "${DIRS[URLS_ARTIFACTS]}/collected_urls.txt" ]]; then
-        grep -E '\.js(\?.*)?$' "${DIRS[URLS_ARTIFACTS]}/collected_urls.txt" >> "$TEMP_JS_FILE" 2>/dev/null || true
+    # Extract live JS URLs from httpx probe results (only direct 200 responses)
+    if [[ -f "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_with_params_output.txt" ]]; then
+        grep -E '\.js(\?.*)?.*\[200\]' "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_with_params_output.txt" 2>/dev/null |
+        grep -v '\[.*,.*200.*\]' |  # Exclude redirects like [302,200]
+        awk '{print $1}' >> "$TEMP_JS_FILE" 2>/dev/null || true
     fi
 
-    # Get URLs from crawl step
-    if [[ -f "${DIRS[URLS_ARTIFACTS]}/katana_crawled_urls.txt" ]]; then
-        grep -E '\.js(\?.*)?$' "${DIRS[URLS_ARTIFACTS]}/katana_crawled_urls.txt" >> "$TEMP_JS_FILE" 2>/dev/null || true
+    if [[ -f "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_without_params_output.txt" ]]; then
+        grep -E '\.js(\?.*)?.*\[200\]' "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_without_params_output.txt" 2>/dev/null |
+        grep -v '\[.*,.*200.*\]' |  # Exclude redirects like [302,200]
+        awk '{print $1}' >> "$TEMP_JS_FILE" 2>/dev/null || true
     fi
 }
 
