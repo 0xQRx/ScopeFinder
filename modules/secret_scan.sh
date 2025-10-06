@@ -53,7 +53,6 @@ module_run() {
         # This ensures each unique secret appears only once
         if [[ -f "$temp_secrets" ]] && [[ -s "$temp_secrets" ]]; then
             # Extract unique combinations of [Type] and Value, keeping first occurrence with source
-            # Add newline after each entry for readability
             awk -F' \\(Source: ' '
             {
                 # Extract the secret part (type and value)
@@ -61,9 +60,8 @@ module_run() {
                 # Store full line for first occurrence
                 if (!seen[secret]++) {
                     print $0
-                    print ""  # Add blank line for readability
                 }
-            }' "$temp_secrets" | sort > "${DIRS[SECRETS]}/${FILES[JSHUNTER_ALL]}"
+            }' "$temp_secrets" | sort | sed 's/$/\n/' > "${DIRS[SECRETS]}/${FILES[JSHUNTER_ALL]}"
         else
             > "${DIRS[SECRETS]}/${FILES[JSHUNTER_ALL]}"
         fi
