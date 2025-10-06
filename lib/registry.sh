@@ -102,7 +102,18 @@ determine_modules_to_run() {
     local -n result=$1
     result=()
 
-    for module in "${MODULES_ORDER[@]}"; do
-        result+=("$module")
-    done
+    # If replay mode, only run specified modules
+    if [[ -n "$REPLAY_MODULES" ]]; then
+        IFS=',' read -ra modules_to_replay <<< "$REPLAY_MODULES"
+        for module in "${modules_to_replay[@]}"; do
+            # Trim whitespace
+            module=$(echo "$module" | xargs)
+            result+=("$module")
+        done
+    else
+        # Normal mode - run all modules
+        for module in "${MODULES_ORDER[@]}"; do
+            result+=("$module")
+        done
+    fi
 }

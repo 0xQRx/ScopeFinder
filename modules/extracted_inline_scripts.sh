@@ -42,11 +42,14 @@ module_run() {
                 seen_hashes[$hash]=1
 
                 # Check for behavioral patterns - expanded patterns for more API methods
-                printf "%s" "$block" | grep -Pqzi '<script(?![^>]*\bsrc=)[^>]*>(?=[\s\S]*?(fetch\(|\.open\(|new\s+XMLHttpRequest|\.send\(|\$\.ajax\(|\$\.get\(|\$\.post\(|\$\.patch\(|\$\.put\(|\$\.delete\(|\.get\("|\.post\("|\.put\("|\.patch\("|\.delete\("|\.request\(|\.sendBeacon\(|new\s+WebSocket|new\s+EventSource|postMessage\(|axios\.|axios\(|io\(|\.write\(|\.emit\(|\.subscribe\(|\.publish\(|http\.request\(|https\.request\(|superagent\.|request\(|got\(|node-fetch|ky\(|cross-fetch|unfetch\(|isomorphic-fetch|graphql\(|apollo|relay|urql|swr\(|useQuery\(|useMutation\(|useLazyQuery\(|api\(|apiCall\(|apiRequest\(|makeRequest\(|doRequest\(|sendRequest\(|httpClient\.|restClient\.|graphqlClient\.|websocketClient\.|socketClient\.)[\s\S]*?</script>' || continue
+                # Check if block contains any API patterns
+                if ! printf "%s" "$block" | grep -Pqi 'fetch\(|\.open\(|new\s+XMLHttpRequest|\.send\(|\$\.ajax\(|\$\.get\(|\$\.post\(|\$\.patch\(|\$\.put\(|\$\.delete\(|\.get\("|\.post\("|\.put\("|\.patch\("|\.delete\("|\.request\(|\.sendBeacon\(|new\s+WebSocket|new\s+EventSource|postMessage\(|axios\.|axios\(|io\(|\.write\(|\.emit\(|\.subscribe\(|\.publish\(|http\.request\(|https\.request\(|superagent\.|request\(|got\(|node-fetch|ky\(|cross-fetch|unfetch\(|isomorphic-fetch|graphql\(|apollo|relay|urql|swr\(|useQuery\(|useMutation\(|useLazyQuery\(|api\(|apiCall\(|apiRequest\(|makeRequest\(|doRequest\(|sendRequest\(|httpClient\.|restClient\.|graphqlClient\.|websocketClient\.|socketClient\.'; then
+                    continue
+                fi
 
                 # Append to output file
                 printf "%s\n\n" "$block" >> "$output_file"
-            done < <(grep -Pzo '<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?</script>' "$src" 2>/dev/null)
+            done < <(grep -Pzo '<script[^>]*>[\s\S]*?</script>' "$src" 2>/dev/null | grep -Pzv '<script[^>]*\bsrc=' 2>/dev/null)
         done
     done
 
