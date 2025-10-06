@@ -14,13 +14,13 @@ module_init() {
     > "$TEMP_URLS"
 
     # Get URLs from archive step
-    [[ -f "${DIRS[URLS_ARTIFACTS]}/waymore_collected_urls.txt" ]] && cat "${DIRS[URLS_ARTIFACTS]}/waymore_collected_urls.txt" >> "$TEMP_URLS"
+    [[ -f "${DIRS[URLS_ARTIFACTS]}/${FILES[COLLECTED_URLS]}" ]] && cat "${DIRS[URLS_ARTIFACTS]}/${FILES[COLLECTED_URLS]}" >> "$TEMP_URLS"
 
     # Get URLs from crawl step
-    [[ -f "${DIRS[URLS_ARTIFACTS]}/katana_crawled_urls.txt" ]] && cat "${DIRS[URLS_ARTIFACTS]}/katana_crawled_urls.txt" >> "$TEMP_URLS"
+    [[ -f "${DIRS[URLS_ARTIFACTS]}/${FILES[CRAWLED_URLS]}" ]] && cat "${DIRS[URLS_ARTIFACTS]}/${FILES[CRAWLED_URLS]}" >> "$TEMP_URLS"
 
     # Get URLs from extraction step
-    [[ -f "${DIRS[URLS_LINKFINDER]}/xnLinkFinder/xnLinkFinder_output.txt" ]] && cat "${DIRS[URLS_LINKFINDER]}/xnLinkFinder/xnLinkFinder_output.txt" >> "$TEMP_URLS"
+    [[ -f "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_OUTPUT]}" ]] && cat "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_OUTPUT]}" >> "$TEMP_URLS"
 }
 
 module_run() {

@@ -73,10 +73,10 @@ module_run() {
     fi
 
     # Combine and deduplicate IPs
-    cat "${DIRS[SHODAN]}"/${FILES[IPS_FROM_SSL]} "${DIRS[SHODAN]}"/${FILES[IPS_FROM_ORG]} 2>/dev/null | sort -u > "${DIRS[SHODAN]}/all_shodan_ips.txt" || true
+    cat "${DIRS[SHODAN]}"/${FILES[IPS_FROM_SSL]} "${DIRS[SHODAN]}"/${FILES[IPS_FROM_ORG]} 2>/dev/null | sort -u > "${DIRS[SHODAN]}/${FILES[ALL_SHODAN_IPS]}" || true
 
     local ip_count=0
-    [[ -f "${DIRS[SHODAN]}/all_shodan_ips.txt" ]] && ip_count=$(wc -l < "${DIRS[SHODAN]}/all_shodan_ips.txt")
+    [[ -f "${DIRS[SHODAN]}/${FILES[ALL_SHODAN_IPS]}" ]] && ip_count=$(wc -l < "${DIRS[SHODAN]}/${FILES[ALL_SHODAN_IPS]}")
     log_info "Found $ip_count unique IP:port combinations"
 
     return 0

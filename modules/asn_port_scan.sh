@@ -25,19 +25,19 @@ module_run() {
 
     # Port scanning with smap on ASN ranges
     log_info "Scanning ports on ASN ranges..."
-    mkdir -p "${DIRS[ASN]}/smap_results"
-    smap -iL "$ASN_RANGES" -oA "${DIRS[ASN]}/smap_results/open_ports" 2>/dev/null || true
+    mkdir -p "${DIRS[ASN_SMAP]}"
+    smap -iL "$ASN_RANGES" -oA "${DIRS[ASN_SMAP]}/open_ports" 2>/dev/null || true
 
     # Extract web servers from ASN scan
-    if [[ -f "${DIRS[ASN]}/smap_results/open_ports.gnmap" ]]; then
-        grep -E "443|80" "${DIRS[ASN]}/smap_results/open_ports.gnmap" | \
+    if [[ -f "${DIRS[ASN_SMAP]}/open_ports.gnmap" ]]; then
+        grep -E "443|80" "${DIRS[ASN_SMAP]}/open_ports.gnmap" | \
             awk '/Host:/ {if ($3 ~ /\(/) {print $2, $3} else {print $2, "(No domain)"}}' | \
-            sed 's/[()]//g' > "${DIRS[ASN]}/webservers_ip_domain.txt" || true
+            sed 's/[()]//g' > "${DIRS[ASN]}/${FILES[ASN_WEBSERVERS]}" || true
     fi
 
     # Count results
     local server_count=0
-    [[ -f "${DIRS[ASN]}/webservers_ip_domain.txt" ]] && server_count=$(wc -l < "${DIRS[ASN]}/webservers_ip_domain.txt")
+    [[ -f "${DIRS[ASN]}/${FILES[ASN_WEBSERVERS]}" ]] && server_count=$(wc -l < "${DIRS[ASN]}/${FILES[ASN_WEBSERVERS]}")
     log_info "Found $server_count web servers in ASN ranges"
 
     # Update latest symlink

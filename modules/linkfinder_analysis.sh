@@ -15,7 +15,7 @@ module_init() {
 
     # Create output directories only if we have JS files to analyze
     mkdir -p "${DIRS[URLS_LINKFINDER]}"
-    mkdir -p "${DIRS[URLS_LINKFINDER]}/xnLinkFinder"
+    mkdir -p "${DIRS[XNLINKFINDER]}"
 }
 
 module_run() {
@@ -29,7 +29,7 @@ module_run() {
         log_info "Running linkfinder..."
         linkfinder -i "$JS_DIR" \
                    --out-dir "${DIRS[URLS_LINKFINDER]}" \
-                   --unknown-domain "${DIRS[URLS_LINKFINDER]}/unknown_domain_urls.txt" > /dev/null 2>&1 || true
+                   --unknown-domain "${DIRS[URLS_LINKFINDER]}/${FILES[LINKFINDER_UNKNOWN_DOMAINS]}" > /dev/null 2>&1 || true
 
         # Process linkfinder output files
         for file in "${DIRS[URLS_LINKFINDER]}"/*.txt; do
@@ -44,12 +44,12 @@ module_run() {
         log_info "Running xnLinkFinder on JavaScript files..."
         xnLinkFinder -i "$JS_DIR" \
                      -sp "$DOMAIN" -sf "$DOMAIN" \
-                     -o "${DIRS[URLS_LINKFINDER]}/xnLinkFinder/xnLinkFinder_js_output.txt" \
-                     -op "${DIRS[URLS_LINKFINDER]}/xnLinkFinder/xnLinkFinder_js_parameters.txt" \
-                     -oo "${DIRS[URLS_LINKFINDER]}/xnLinkFinder/xnLinkFinder_js_out_of_scope_urls.txt" > /dev/null 2>&1 || true
+                     -o "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_JS_OUTPUT]}" \
+                     -op "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_JS_PARAMS]}" \
+                     -oo "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_JS_OUT_OF_SCOPE]}" > /dev/null 2>&1 || true
 
         # Deduplicate xnLinkFinder files
-        for file in "${DIRS[URLS_LINKFINDER]}/xnLinkFinder"/*.txt; do
+        for file in "${DIRS[XNLINKFINDER]}"/*.txt; do
             [[ -f "$file" ]] && dedupe_file "$file"
         done
     fi

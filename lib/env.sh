@@ -35,6 +35,8 @@ init_dirs() {
     DIRS[ASN]="${domain}/asn"
     DIRS[ASN_SMAP]="${domain}/asn/smap_results"
     DIRS[DORKS]="${domain}/dorks"
+    DIRS[EXTRACTED_INLINE_SCRIPTS]="${domain}/urls/extracted_inline_scripts"
+    DIRS[XNLINKFINDER]="${domain}/urls/linkfinder/xnLinkFinder"
 
     # Downloaded/raw data directories (in urls/artifacts to match original)
     DIRS[DOWNLOADED_DATA]="${domain}/urls/artifacts/downloaded_data"
@@ -88,6 +90,20 @@ declare -A FILES=(
     [BURP_X8_URLS]="burp_urls_with_x8_custom_params.txt"
     [COLLECTED_URLS]="waymore_collected_urls.txt"
     [CRAWLED_URLS]="katana_crawled_urls.txt"
+    [HTTPX_URLS_WITH_PARAMS_OUTPUT]="httpx_live_links_with_params_output.txt"
+    [HTTPX_URLS_WITHOUT_PARAMS_OUTPUT]="httpx_live_links_without_params_output.txt"
+    [ALL_SHODAN_IPS]="all_shodan_ips.txt"
+    [ASN_WEBSERVERS]="webservers_ip_domain.txt"
+    [INLINE_SCRIPTS]="scripts.html"
+    [LINKFINDER_UNKNOWN_DOMAINS]="unknown_domain_urls.txt"
+    [XNLINKFINDER_OUTPUT]="xnLinkFinder_output.txt"
+    [XNLINKFINDER_PARAMS]="xnLinkFinder_parameters.txt"
+    [XNLINKFINDER_OUT_OF_SCOPE]="xnLinkFinder_out_of_scope_urls.txt"
+    [XNLINKFINDER_DOMAIN_UNKNOWN]="domain_not_known_xnLinkFinder_output.txt"
+    [XNLINKFINDER_JS_OUTPUT]="xnLinkFinder_js_output.txt"
+    [XNLINKFINDER_JS_PARAMS]="xnLinkFinder_js_parameters.txt"
+    [XNLINKFINDER_JS_OUT_OF_SCOPE]="xnLinkFinder_js_out_of_scope_urls.txt"
+    [MSFTRECON_OUTPUT]="msftrecon.txt"
 )
 
 # Tool-specific proxy configurations

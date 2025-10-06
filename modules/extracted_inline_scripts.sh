@@ -6,13 +6,13 @@ MODULE_DESC="Extract inline scripts that might have dynamic URLs"
 
 module_init() {
     # Create output directories
-    mkdir -p "${DIRS[URLS]}/extracted_inline_scripts"
+    mkdir -p "${DIRS[EXTRACTED_INLINE_SCRIPTS]}"
 }
 
 module_run() {
     log_info "Extracting inline scripts with dynamic URL patterns"
 
-    local output_file="${DIRS[URLS]}/extracted_inline_scripts/scripts.html"
+    local output_file="${DIRS[EXTRACTED_INLINE_SCRIPTS]}/${FILES[INLINE_SCRIPTS]}"
     : > "$output_file"  # Clear previous output
 
     declare -A seen_hashes  # Deduplication map

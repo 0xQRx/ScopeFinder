@@ -36,17 +36,17 @@ module_run() {
            -headless -no-sandbox -jc \
            -d 2 -c 10 -p 2 -rl 10 -rlm 120 \
            -timeout 5 -retry 2 \
-           -o "${DIRS[URLS_ARTIFACTS]}/katana_crawled_urls.txt" \
+           -o "${DIRS[URLS_ARTIFACTS]}/${FILES[CRAWLED_URLS]}" \
            -silent -sr -srd "${DIRS[KATANA_DATA]}" \
            -ef png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf,css \
            $proxy_flag > /dev/null 2>&1 || true
 
     # Deduplicate
-    dedupe_file "${DIRS[URLS_ARTIFACTS]}/katana_crawled_urls.txt"
+    dedupe_file "${DIRS[URLS_ARTIFACTS]}/${FILES[CRAWLED_URLS]}"
 
     # Count results
     local url_count=0
-    [[ -f "${DIRS[URLS_ARTIFACTS]}/katana_crawled_urls.txt" ]] && url_count=$(wc -l < "${DIRS[URLS_ARTIFACTS]}/katana_crawled_urls.txt")
+    [[ -f "${DIRS[URLS_ARTIFACTS]}/${FILES[CRAWLED_URLS]}" ]] && url_count=$(wc -l < "${DIRS[URLS_ARTIFACTS]}/${FILES[CRAWLED_URLS]}")
     log_info "Crawled $url_count URLs"
 
     return 0

@@ -64,11 +64,11 @@ module_run() {
 
         httpx -status-code -list "$URLS_WITH" -fr -no-color \
               -fs "Burp Suite" \
-              -o "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_with_params_output.txt" \
+              -o "${DIRS[URLS_ARTIFACTS]}/${FILES[HTTPX_URLS_WITH_PARAMS_OUTPUT]}" \
               $proxy_flag > /dev/null 2>&1 || true
 
         # Filter in-scope live URLs
-        filter_in_scope_urls "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_with_params_output.txt" | \
+        filter_in_scope_urls "${DIRS[URLS_ARTIFACTS]}/${FILES[HTTPX_URLS_WITH_PARAMS_OUTPUT]}" | \
             grep -oP 'https?://[^\s"]+\?[^\s"]*' | \
             grep -Ev '\.js(\?.*)?$' > "${DIRS[URLS]}/live_urls_with_params_temp.txt" 2>/dev/null || true
 
@@ -88,15 +88,15 @@ module_run() {
 
         httpx -status-code -list "$URLS_WITHOUT" -fr -no-color \
               -fs "Burp Suite" \
-              -o "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_without_params_output.txt" \
+              -o "${DIRS[URLS_ARTIFACTS]}/${FILES[HTTPX_URLS_WITHOUT_PARAMS_OUTPUT]}" \
               $proxy_flag > /dev/null 2>&1 || true
 
         # Filter in-scope live URLs
-        filter_in_scope_urls "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_without_params_output.txt" | \
+        filter_in_scope_urls "${DIRS[URLS_ARTIFACTS]}/${FILES[HTTPX_URLS_WITHOUT_PARAMS_OUTPUT]}" | \
             grep -v '\?' > "${DIRS[URLS]}/live_urls_without_params_temp.txt" 2>/dev/null || true
 
         # Also check for URLs with params from without-params probing
-        filter_in_scope_urls "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_without_params_output.txt" | \
+        filter_in_scope_urls "${DIRS[URLS_ARTIFACTS]}/${FILES[HTTPX_URLS_WITHOUT_PARAMS_OUTPUT]}" | \
             grep -oP 'https?://[^\s"]+\?[^\s"]*' | \
             grep -Ev '\.js(\?.*)?$' >> "${DIRS[URLS]}/live_urls_with_params_temp2.txt" 2>/dev/null || true
 

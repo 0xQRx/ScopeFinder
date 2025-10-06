@@ -19,7 +19,7 @@ module_run() {
     # Run msftrecon for Microsoft cloud resources
     if command -v msftrecon &> /dev/null; then
         log_info "Running msftrecon..."
-        msftrecon -d "$DOMAIN" >> "${DIRS[CLOUD]}/msftrecon.txt" 2>/dev/null || true
+        msftrecon -d "$DOMAIN" >> "${DIRS[CLOUD]}/${FILES[MSFTRECON_OUTPUT]}" 2>/dev/null || true
     else
         log_warn "msftrecon not found - skipping Microsoft cloud reconnaissance"
     fi
@@ -52,8 +52,8 @@ module_run() {
     local sni_count=0
 
     # Check for Microsoft recon results
-    if [[ -f "${DIRS[CLOUD]}/msftrecon.txt" ]]; then
-        if grep -q "Namespace Type: Unknown" "${DIRS[CLOUD]}/msftrecon.txt"; then
+    if [[ -f "${DIRS[CLOUD]}/${FILES[MSFTRECON_OUTPUT]}" ]]; then
+        if grep -q "Namespace Type: Unknown" "${DIRS[CLOUD]}/${FILES[MSFTRECON_OUTPUT]}"; then
             log_info "Microsoft cloud resources not detected (namespace unknown)"
         else
             log_info "Microsoft cloud resources detected during reconnaissance"

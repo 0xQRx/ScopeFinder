@@ -14,14 +14,14 @@ module_init() {
     > "$TEMP_JS_FILE"
 
     # Extract live JS URLs from httpx probe results (only direct 200 responses)
-    if [[ -f "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_with_params_output.txt" ]]; then
-        grep -E '\.js(\?.*)?.*\[200\]' "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_with_params_output.txt" 2>/dev/null |
+    if [[ -f "${DIRS[URLS_ARTIFACTS]}/${FILES[HTTPX_URLS_WITH_PARAMS_OUTPUT]}" ]]; then
+        grep -E '\.js(\?.*)?.*\[200\]' "${DIRS[URLS_ARTIFACTS]}/${FILES[HTTPX_URLS_WITH_PARAMS_OUTPUT]}" 2>/dev/null |
         grep -v '\[.*,.*200.*\]' |  # Exclude redirects like [302,200]
         awk '{print $1}' >> "$TEMP_JS_FILE" 2>/dev/null || true
     fi
 
-    if [[ -f "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_without_params_output.txt" ]]; then
-        grep -E '\.js(\?.*)?.*\[200\]' "${DIRS[URLS_ARTIFACTS]}/httpx_live_links_without_params_output.txt" 2>/dev/null |
+    if [[ -f "${DIRS[URLS_ARTIFACTS]}/${FILES[HTTPX_URLS_WITHOUT_PARAMS_OUTPUT]}" ]]; then
+        grep -E '\.js(\?.*)?.*\[200\]' "${DIRS[URLS_ARTIFACTS]}/${FILES[HTTPX_URLS_WITHOUT_PARAMS_OUTPUT]}" 2>/dev/null |
         grep -v '\[.*,.*200.*\]' |  # Exclude redirects like [302,200]
         awk '{print $1}' >> "$TEMP_JS_FILE" 2>/dev/null || true
     fi

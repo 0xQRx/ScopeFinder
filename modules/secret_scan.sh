@@ -24,19 +24,50 @@ module_run() {
         return 0
     fi
 
-    # Run jshunter on each directory
+    # Run jshunter on each directory with JSON output
     if command -v jshunter &> /dev/null; then
         log_info "Running jshunter..."
+
+        # Temporary file for collecting unique secrets
+        local temp_secrets="${DIRS[SECRETS_ARTIFACTS]}/temp_all_secrets.txt"
+        > "$temp_secrets"
+
         for name in "${!SCAN_TARGETS[@]}"; do
             local dir="${SCAN_TARGETS[$name]}"
             if [[ -d "$dir" ]]; then
-                jshunter -d "$dir" --recursive -quiet -o "${DIRS[SECRETS_ARTIFACTS]}/jshunter_${name}.txt" 2>/dev/null || true
+                # Run jshunter with JSON output
+                jshunter -d "$dir" --recursive --quiet --json -o "${DIRS[SECRETS_ARTIFACTS]}/jshunter_${name}.json" 2>/dev/null || true
+
+                # Extract secrets from JSON and add to temp file
+                if [[ -f "${DIRS[SECRETS_ARTIFACTS]}/jshunter_${name}.json" ]]; then
+                    # Parse JSON to extract unique secret values
+                    # Format: [SecretType] Value (Source: filename)
+                    # Replace newlines with spaces to keep entries on single lines
+                    jq -r '.findings[]? | .source as $src | .categories[]? | .category as $cat | .matches[]? | "[\($cat)] \(.value | gsub("\n"; " ")) (Source: \($src))"' \
+                        "${DIRS[SECRETS_ARTIFACTS]}/jshunter_${name}.json" 2>/dev/null >> "$temp_secrets" || true
+                fi
             fi
         done
 
-        # Combine all jshunter results
-        cat "${DIRS[SECRETS_ARTIFACTS]}"/jshunter_*.txt > "${DIRS[SECRETS]}/${FILES[JSHUNTER_ALL]}" 2>/dev/null || true
-        dedupe_file "${DIRS[SECRETS]}/${FILES[JSHUNTER_ALL]}"
+        # Deduplicate secrets based on type and value (ignoring source)
+        # This ensures each unique secret appears only once
+        if [[ -f "$temp_secrets" ]] && [[ -s "$temp_secrets" ]]; then
+            # Extract unique combinations of [Type] and Value, keeping first occurrence with source
+            awk -F' \\(Source: ' '
+            {
+                # Extract the secret part (type and value)
+                secret = $1
+                # Store full line for first occurrence
+                if (!seen[secret]++) {
+                    print $0
+                }
+            }' "$temp_secrets" | sort > "${DIRS[SECRETS]}/${FILES[JSHUNTER_ALL]}"
+        else
+            > "${DIRS[SECRETS]}/${FILES[JSHUNTER_ALL]}"
+        fi
+
+        # Clean up temp file
+        rm -f "$temp_secrets"
     else
         log_warn "jshunter not found - skipping"
     fi
