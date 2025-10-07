@@ -43,11 +43,13 @@ module_run() {
 
         wpscan -t 1 \
                --api-token="${WPSCAN_API_KEY:-}" \
-               --enumerate \
-               --throttle 500 \
+               --enumerate vp,vt,u \
+               --connect-timeout 10 \
+               --request-timeout 30 \
+               --stealthy \
+               --throttle 700 \
                -o "$output_file" \
                -f cli-no-color \
-               --rua \
                --disable-tls-checks \
                --update \
                --url "$SUBDOMAIN" 2>/dev/null || true
