@@ -3,6 +3,9 @@
 
 set -euo pipefail
 
+# Handle Ctrl+C to exit immediately
+trap 'echo -e "\n\nInterrupted by user. Exiting..."; exit 130' SIGINT SIGTERM
+
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -16,7 +19,8 @@ DOMAIN=""
 HTTP_PROXY_URL=""
 DRY_RUN=false
 REPLAY_MODULES=""
-NO_RESUME=false
+FROM_MODULE=""
+FRESH_RUN=false
 
 # Help function
 usage() {
@@ -29,8 +33,8 @@ Options:
     --list-modules            List all available modules
     --status                  Show completion status of each module
     --replay module1,module2  Force re-run specific modules (requires prior run)
-    --no-resume              Ignore checkpoints, run everything fresh
-    --reset                  Clear all checkpoints
+    --start-from module       Start execution from specified module onwards
+    --fresh                  Clear all checkpoints and run everything from scratch
     --proxy URL              HTTP proxy URL for httpx and katana tools only
                              (Use http:// not https://, and Docker host IP 172.17.0.1)
     --dry-run                Show what would be executed
@@ -80,8 +84,13 @@ parse_args() {
                 REPLAY_MODULES="$2"
                 shift 2
                 ;;
-            --no-resume)
-                NO_RESUME=true
+            --start-from)
+                FROM_MODULE="$2"
+                shift 2
+                ;;
+            --fresh)
+                [[ -z "${DOMAIN:-}" ]] && { echo "Error: Domain required for --fresh"; exit 1; }
+                FRESH_RUN=true
                 shift
                 ;;
             --proxy)
@@ -92,12 +101,6 @@ parse_args() {
             --dry-run)
                 DRY_RUN=true
                 shift
-                ;;
-            --reset)
-                [[ -z "${DOMAIN:-}" ]] && { echo "Error: Domain required for reset"; exit 1; }
-                init_dirs "$DOMAIN"
-                reset_checkpoints
-                exit 0
                 ;;
             -h|--help)
                 usage
@@ -188,6 +191,12 @@ main() {
     # Set up environment for domain
     export DOMAIN
     init_dirs "$DOMAIN"
+
+    # Handle fresh run - clear checkpoints before proceeding
+    if [[ "$FRESH_RUN" == "true" ]]; then
+        log_info "Fresh run requested - clearing all checkpoints"
+        reset_checkpoints
+    fi
 
     # Initialize workspace
     if [[ "$DRY_RUN" == "false" ]]; then

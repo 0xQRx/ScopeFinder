@@ -89,6 +89,10 @@ show_module_status() {
             status="✅ Complete"
             local timestamp=$(cat "${DIRS[CHECKPOINTS_DIR]}/${module}.done")
             completed_at=$(date -d "@$timestamp" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r "$timestamp" '+%Y-%m-%d %H:%M:%S')
+        elif [[ -f "${DIRS[CHECKPOINTS_DIR]}/${module}.skipped" ]]; then
+            status="⏭️  Skipped"
+            local timestamp=$(cat "${DIRS[CHECKPOINTS_DIR]}/${module}.skipped")
+            completed_at=$(date -d "@$timestamp" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r "$timestamp" '+%Y-%m-%d %H:%M:%S')
         elif [[ -f "${DIRS[CHECKPOINTS_DIR]}/${module}.start" ]]; then
             status="⏳ In progress"
         fi
@@ -110,6 +114,22 @@ determine_modules_to_run() {
             module=$(echo "$module" | xargs)
             result+=("$module")
         done
+    elif [[ -n "$FROM_MODULE" ]]; then
+        # From mode - run from specified module onwards
+        local found=false
+        for module in "${MODULES_ORDER[@]}"; do
+            if [[ "$module" == "$FROM_MODULE" ]]; then
+                found=true
+            fi
+            if [[ "$found" == "true" ]]; then
+                result+=("$module")
+            fi
+        done
+        if [[ "$found" == "false" ]]; then
+            log_error "Module not found: $FROM_MODULE"
+            log_info "Available modules: ${MODULES_ORDER[*]}"
+            exit 1
+        fi
     else
         # Normal mode - run all modules
         for module in "${MODULES_ORDER[@]}"; do

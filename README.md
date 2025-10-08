@@ -152,7 +152,7 @@ ScopeFinder --list-modules
 ScopeFinder example.com --replay wordpress_scan,secret_scan
 
 # Reset all checkpoints
-ScopeFinder example.com --reset
+ScopeFinder example.com --fresh
 
 # Dry run (show what would be executed)
 ScopeFinder example.com --dry-run
@@ -169,7 +169,6 @@ sf-run bash
 
 # Run specific tools directly
 sf-run subfinder -d example.com
-sf-run nuclei -u https://example.com
 sf-run trufflehog filesystem /output/example.com
 ```
 

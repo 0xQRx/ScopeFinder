@@ -91,7 +91,7 @@ MODULE() {
     fi
 
     # Check checkpoint
-    if [[ "$NO_RESUME" == "false" ]] && is_module_complete "$module_name" && ! should_replay_module "$module_name"; then
+    if is_module_complete "$module_name" && ! should_replay_module "$module_name"; then
         log_info "Module already complete: $module_name (use --replay to re-run)"
         return 0
     fi
@@ -113,6 +113,7 @@ MODULE() {
     if declare -f module_init >/dev/null; then
         if ! module_init; then
             log_info "Module skipped: $module_name"
+            echo "$(date +%s)" > "${DIRS[CHECKPOINTS_DIR]}/${module_name}.skipped"
             return 0  # Return success to continue with other modules
         fi
     fi
@@ -139,5 +140,12 @@ MODULE() {
 # Check if module should be replayed
 should_replay_module() {
     local module=$1
-    [[ -n "$REPLAY_MODULES" ]] && [[ ",$REPLAY_MODULES," == *",$module,"* ]]
+    # Replay if in REPLAY_MODULES list or if it's the FROM_MODULE
+    if [[ -n "$REPLAY_MODULES" ]] && [[ ",$REPLAY_MODULES," == *",$module,"* ]]; then
+        return 0
+    fi
+    if [[ -n "$FROM_MODULE" ]] && [[ "$module" == "$FROM_MODULE" ]]; then
+        return 0
+    fi
+    return 1
 }
