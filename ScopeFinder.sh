@@ -198,6 +198,24 @@ main() {
         reset_checkpoints
     fi
 
+    # Handle start-from - clear checkpoints from specified module onwards
+    if [[ -n "$FROM_MODULE" ]]; then
+        log_info "Clearing checkpoints from $FROM_MODULE onwards"
+        # Load modules to get the order
+        load_all_modules
+        local found=false
+        for module in "${MODULES_ORDER[@]}"; do
+            if [[ "$module" == "$FROM_MODULE" ]]; then
+                found=true
+            fi
+            if [[ "$found" == "true" ]]; then
+                rm -f "${DIRS[CHECKPOINTS_DIR]}/${module}.done"
+                rm -f "${DIRS[CHECKPOINTS_DIR]}/${module}.skipped"
+                rm -f "${DIRS[CHECKPOINTS_DIR]}/${module}.start"
+            fi
+        done
+    fi
+
     # Initialize workspace
     if [[ "$DRY_RUN" == "false" ]]; then
         init_workspace

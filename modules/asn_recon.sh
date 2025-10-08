@@ -5,24 +5,24 @@ MODULE_NAME="asn_recon"
 MODULE_DESC="Analyze ASN SSL certificates using CloudRecon and probe with httpx"
 
 module_init() {
+    # Get ASN ranges from previous step
+    ASN_RANGES="${DIRS[ASN]}/${FILES[ASN_RANGES]}"
+
+    if ! check_file "$ASN_RANGES"; then
+        log_info "No ASN ranges available for SSL certificate analysis"
+        return 1  # Skip module if no ASN ranges or file is empty
+    fi
+
     # Create output directory
-    # Fixed paths
     mkdir -p "${DIRS[ASN]}"
     mkdir -p "${DIRS[ASN]}/artifacts"
     mkdir -p "${DIRS[ASN]}/tld_domains_recon"
-
-    # Get ASN ranges from previous step
-    ASN_RANGES="${DIRS[ASN]}/${FILES[ASN_RANGES]}"
 
     # Extract base domain name
     DOMAIN_BASE_NAME=$(echo "$DOMAIN" | awk -F'.' '{print $(NF-1)}')
 }
 
 module_run() {
-    if ! check_file "$ASN_RANGES"; then
-        log_info "No ASN ranges available for SSL certificate analysis"
-        return 0
-    fi
 
     # Run CloudRecon to obtain SSL Certificate information
     if command -v CloudRecon &> /dev/null; then
