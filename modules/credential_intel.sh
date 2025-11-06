@@ -1,17 +1,17 @@
 #!/bin/bash
 # Email and credential intelligence gathering
 
-MODULE_NAME="email_intel"
+MODULE_NAME="credential_intel"
 MODULE_DESC="Gather emails and leaked credentials using Hunter.io and DeHashed APIs"
 
 module_init() {
     # Create output directories
-    mkdir -p "${DIRS[EMAILS]}"
-    mkdir -p "${DIRS[EMAILS]}/artifacts"
+    mkdir -p "${DIRS[CREDENTIALS]}"
+    mkdir -p "${DIRS[CREDENTIALS]}/artifacts"
 
     # Set up output files
-    EMAILS_FILE="${DIRS[EMAILS]}/${FILES[EMAILS]}"
-    CREDS_FILE="${DIRS[EMAILS]}/${FILES[LEAKED_CREDS]}"
+    EMAILS_FILE="${DIRS[CREDENTIALS]}/${FILES[EMAILS]}"
+    CREDS_FILE="${DIRS[CREDENTIALS]}/${FILES[LEAKED_CREDS]}"
 }
 
 module_run() {
@@ -30,7 +30,7 @@ module_run() {
     if [[ -n "${DEHASHED_API_KEY:-}" ]]; then
         log_info "Searching DeHashed..."
 
-        local dehashed_response="${DIRS[EMAILS]}/artifacts/dehashed_raw.json"
+        local dehashed_response="${DIRS[CREDENTIALS]}/artifacts/dehashed_raw.json"
         curl -s -X POST 'https://api.dehashed.com/v2/search' \
             --header "Dehashed-Api-Key: $DEHASHED_API_KEY" \
             --header "Content-Type: application/json" \

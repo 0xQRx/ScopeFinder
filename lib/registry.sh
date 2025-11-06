@@ -4,10 +4,13 @@
 # Ordered list of modules - this determines execution order
 declare -a MODULES_ORDER=(
     "google_dorks_generator" # Generates google dorks
+    "github_dorks"         # Generates GitHub dorks
+    "dockerhub_dorks"      # Generates Docker Hub dorks
+    "postman_dorks"        # Generates Postman dorks
     "shodan_search"        # Shodan IP search (with org selection)
     "subdomain_enum"       # Subdomain enumeration (multiple sources)
     "ip_discovery"         # IP discovery from open sources
-    "email_intel"          # Email and leaked credential search
+    "credential_intel"     # Email and leaked credential search
     "waymore_archive_recon" # URL collection from web archives (waymore)
     "smap_port_scan"            # Port scanning on subdomains
     "httpx_subdomain_probe"        # Service probing with httpx

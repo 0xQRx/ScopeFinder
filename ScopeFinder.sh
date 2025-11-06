@@ -33,7 +33,7 @@ Options:
     --list-modules            List all available modules
     --status                  Show completion status of each module
     --replay module1,module2  Force re-run specific modules (requires prior run)
-    --start-from module       Start execution from specified module onwards
+    --replay-from module      Start execution from specified module onwards
     --fresh                  Clear all checkpoints and run everything from scratch
     --proxy URL              HTTP proxy URL for httpx and katana tools only
                              (Use http:// not https://, and Docker host IP 172.17.0.1)
@@ -84,7 +84,7 @@ parse_args() {
                 REPLAY_MODULES="$2"
                 shift 2
                 ;;
-            --start-from)
+            --replay-from)
                 FROM_MODULE="$2"
                 shift 2
                 ;;
@@ -198,7 +198,7 @@ main() {
         reset_checkpoints
     fi
 
-    # Handle start-from - clear checkpoints from specified module onwards
+    # Handle replay-from - clear checkpoints from specified module onwards
     if [[ -n "$FROM_MODULE" ]]; then
         log_info "Clearing checkpoints from $FROM_MODULE onwards"
         # Load modules to get the order

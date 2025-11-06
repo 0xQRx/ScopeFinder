@@ -11,7 +11,7 @@ init_dirs() {
 
     # Main result categories (like original STAGE_1 structure)
     DIRS[SUBDOMAINS]="${domain}/subdomains"
-    DIRS[EMAILS]="${domain}/emails"
+    DIRS[CREDENTIALS]="${domain}/credentials"
     DIRS[URLS]="${domain}/urls"
     DIRS[URLS_ARTIFACTS]="${domain}/urls/artifacts"
     DIRS[URLS_BURP]="${domain}/urls/burp_scanner"
