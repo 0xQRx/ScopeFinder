@@ -11,7 +11,8 @@ module_init() {
 
     # Set up output files
     EMAILS_FILE="${DIRS[CREDENTIALS]}/${FILES[EMAILS]}"
-    CREDS_FILE="${DIRS[CREDENTIALS]}/${FILES[LEAKED_CREDS]}"
+    EMAIL_PASSWD_FILE="${DIRS[CREDENTIALS]}/${FILES[LEAKED_EMAIL_PASSWD]}"
+    USERNAME_PASSWD_FILE="${DIRS[CREDENTIALS]}/${FILES[LEAKED_USERNAME_PASSWD]}"
 }
 
 module_run() {
@@ -34,12 +35,12 @@ module_run() {
         curl -s -X POST 'https://api.dehashed.com/v2/search' \
             --header "Dehashed-Api-Key: $DEHASHED_API_KEY" \
             --header "Content-Type: application/json" \
-            --data-raw "{\"query\": \"$DOMAIN\", \"size\": 10000}" > "$dehashed_response" 2>/dev/null || true
+            --data-raw "{\"query\": \"$DOMAIN\", \"size\": 10000, \"wildcard\": true, \"regex\": false, \"de_dupe\": true}" > "$dehashed_response" 2>/dev/null || true
 
         # Extract emails
         jq -r '.entries[] | .email[]? | select(. != null and . != "")' "$dehashed_response" >> "$EMAILS_FILE" 2>/dev/null || true
 
-        # Extract credential pairs
+        # Extract email:password pairs
         jq -r '
             reduce .entries[] as $item ({};
                 if ($item.email and $item.password and ($item.email | length > 0) and ($item.password | length > 0))
@@ -51,22 +52,39 @@ module_run() {
             | map(.value |= unique)
             | .[]
             | "\(.key): \(.value[])"
-        ' "$dehashed_response" >> "$CREDS_FILE" 2>/dev/null || true
+        ' "$dehashed_response" >> "$EMAIL_PASSWD_FILE" 2>/dev/null || true
+
+        # Extract username:password pairs
+        jq -r '
+            reduce .entries[] as $item ({};
+                if ($item.username and $item.password and ($item.username | length > 0) and ($item.password | length > 0))
+                then
+                    reduce $item.username[] as $u (.; .[$u] = ((.[$u] // []) + $item.password))
+                else . end
+            )
+            | to_entries
+            | map(.value |= unique)
+            | .[]
+            | "\(.key): \(.value[])"
+        ' "$dehashed_response" >> "$USERNAME_PASSWD_FILE" 2>/dev/null || true
     else
         log_warn "Skipping DeHashed - DEHASHED_API_KEY not set"
     fi
 
     # Deduplicate results
     dedupe_file "$EMAILS_FILE"
-    dedupe_file "$CREDS_FILE"
+    dedupe_file "$EMAIL_PASSWD_FILE"
+    dedupe_file "$USERNAME_PASSWD_FILE"
 
     # Count results
     local email_count=0
-    local creds_count=0
+    local email_passwd_count=0
+    local username_passwd_count=0
     [[ -f "$EMAILS_FILE" ]] && email_count=$(wc -l < "$EMAILS_FILE")
-    [[ -f "$CREDS_FILE" ]] && creds_count=$(wc -l < "$CREDS_FILE")
+    [[ -f "$EMAIL_PASSWD_FILE" ]] && email_passwd_count=$(wc -l < "$EMAIL_PASSWD_FILE")
+    [[ -f "$USERNAME_PASSWD_FILE" ]] && username_passwd_count=$(wc -l < "$USERNAME_PASSWD_FILE")
 
-    log_info "Found $email_count unique emails and $creds_count credential pairs"
+    log_info "Found $email_count unique emails, $email_passwd_count email:password pairs, and $username_passwd_count username:password pairs"
 
     return 0
 }
