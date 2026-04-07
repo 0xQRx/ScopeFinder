@@ -92,10 +92,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ============================================
 # Install Golang with multi-arch support
 # ============================================
-ENV GO_VERSION=1.23.5
-
 RUN set -ex && \
-    # Detect architecture if not set
+    GO_VERSION=$(curl -fsSL "https://go.dev/dl/?mode=json" | grep -oP '"version":\s*"go\K[^"]+' | head -1) && \
     if [ -z "${TARGETARCH}" ]; then \
         TARGETARCH="$(dpkg --print-architecture)"; \
     fi && \
@@ -148,7 +146,7 @@ RUN set -ex && \
 # ============================================
 # Install TruffleHog with multi-arch support
 # ============================================
-ARG TRUFFLEHOG_VERSION=3.90.8
+ARG TRUFFLEHOG_VERSION=3.94.2
 RUN set -ex && \
     # Detect architecture if not set
     if [ -z "${TARGETARCH}" ]; then \
@@ -181,6 +179,7 @@ RUN set -ex && \
     go install -v github.com/incogbyte/shosubgo@latest && \
     go install -v github.com/g0ldencybersec/CloudRecon@latest && \
     go install -v github.com/projectdiscovery/asnmap/cmd/asnmap@latest && \
+    go install -v github.com/denandz/sourcemapper@latest && \
     echo "Public Go tools installed"
 
 # ============================================
@@ -257,6 +256,7 @@ RUN set -ex && \
     httpx -version 2>/dev/null | head -1 && \
     katana -version 2>/dev/null | head -1 && \
     asnmap -version 2>/dev/null | head -1 && \
+    sourcemapper -version 2>/dev/null | head -1 && \
     smap -h 2>&1 | head -1 && \
     which crtsh-tool && \
     which jshunter && \
