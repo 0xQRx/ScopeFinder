@@ -34,13 +34,15 @@ module_run() {
     # Your exact katana command preserved
     katana -list "$LIVE_SUBS" \
            -headless -no-sandbox -jc \
-           -d 2 -c 10 -p 2 -rl 10 -rlm 120 \
+           -d 2 -c 10 -p 2 -rl 10 -rlm 120 -ct 5m -mrs 10485760 \
            -timeout 5 -retry 2 \
            -o "${DIRS[URLS_ARTIFACTS]}/${FILES[CRAWLED_URLS]}" \
            -silent -sr -srd "${DIRS[KATANA_DATA]}" \
            -ef png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf,css \
-           $proxy_flag > /dev/null 2>&1 || true
+           $proxy_flag >/dev/null 2>>"${DIRS[URLS_ARTIFACTS]}/katana.err" || true
 
+    [[ -s "${DIRS[URLS_ARTIFACTS]}/katana.err" ]] || rm -f "${DIRS[URLS_ARTIFACTS]}/katana.err"
+    
     # Deduplicate
     dedupe_file "${DIRS[URLS_ARTIFACTS]}/${FILES[CRAWLED_URLS]}"
 
