@@ -36,10 +36,14 @@ module_run() {
         log_debug "No proxy configured for httpx (HTTP_PROXY_URL='$HTTP_PROXY_URL')"
     fi
 
-    # Run httpx - filter out Burp proxy error pages
+    # Run httpx - filter out Burp proxy error pages.
+    # -location (not -fr): reports the Location header for 3xx responses so we
+    # can capture where each subdomain redirects to. With -fr httpx follows the
+    # chain and reports only the final 200, losing all redirect destination info
+    # and leaving redirected_to_subdomains.txt permanently empty.
     httpx -status-code -title -tech-detect \
           -list "$SUBDOMAINS_FILE" \
-          -sid 10 -ss -fr \
+          -sid 10 -ss -location \
           -fs "Burp Suite" \
           -o "${DIRS[HTTPX]}/${FILES[HTTPX_OUTPUT]}" \
           -no-color $proxy_flag > /dev/null 2>&1 || true
@@ -102,6 +106,14 @@ module_run() {
         sort -u "${DIRS[SUBDOMAINS]}/${FILES[SUBDOMAINS_200]}" -o "${DIRS[SUBDOMAINS]}/${FILES[SUBDOMAINS_200]}"
         sort -u "${DIRS[SUBDOMAINS]}/${FILES[REDIRECTED_TO_SUBDOMAINS]}" -o "${DIRS[SUBDOMAINS]}/${FILES[REDIRECTED_TO_SUBDOMAINS]}"
         sort -u "${DIRS[SUBDOMAINS]}/${FILES[LIVE_SUBDOMAINS]}" -o "${DIRS[SUBDOMAINS]}/${FILES[LIVE_SUBDOMAINS]}"
+
+        # Remove empty output files rather than leaving zero-byte placeholders
+        local f
+        for f in "${DIRS[SUBDOMAINS]}/${FILES[SUBDOMAINS_200]}" \
+                  "${DIRS[SUBDOMAINS]}/${FILES[REDIRECTED_TO_SUBDOMAINS]}" \
+                  "${DIRS[SUBDOMAINS]}/${FILES[LIVE_SUBDOMAINS]}"; do
+            [[ -f "$f" && ! -s "$f" ]] && rm -f "$f"
+        done
 
         # Extract WordPress sites only if found
         if grep -qiE '\[.*wordpress.*\]' "${DIRS[HTTPX]}/${FILES[HTTPX_OUTPUT]}" 2>/dev/null; then
