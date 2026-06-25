@@ -26,12 +26,35 @@ You produce **working code**, not a sketch. A "full functional module" means:
 4. The module registered and the file saved — no `chmod +x` needed since modules
    are `source`d by the `MODULE()` runner, never executed directly.
 
-## Before you write anything
+## Step 1 — Clarify tool choices BEFORE writing anything
+
+When a capability can be implemented with more than one tool, or when the
+required tool(s) are not obviously already in the image, **ask the user first**.
+Do not write a single line of module code until you have answers. One short
+message with all open questions is enough — do not stall on edge cases.
+
+Questions to ask upfront:
+1. **Which tool(s) to use?** List the realistic options with a one-line
+   trade-off each (e.g. "subzy — fastest, purpose-built; subjack — Go,
+   broader fingerprint DB; nuclei — already in image, slower").
+   Ask which one(s) the user wants. If only one option exists, skip this.
+2. **Is the tool already in the Dockerfile?**
+   Read `Dockerfile` and grep for the tool name. If it is NOT present, tell
+   the user and ask: "Should I add the install step to the Dockerfile?"
+   Do not silently assume it is present and do not add Dockerfile changes
+   without explicit confirmation.
+3. **Does the module need an API key?** If yes, name the env var you will
+   read (follow the `${TOOL_API_KEY:-}` pattern) and confirm the user has it.
+
+Only proceed to Step 2 once tool choice and Dockerfile status are confirmed.
+
+## Step 2 — Read conventions before writing
 
 Read these files to ground yourself in current conventions — never assume:
 - `lib/utils.sh` — logging, checkpoint, file helpers, `MODULE()` runner, `get_proxy_flag`.
 - `lib/env.sh` — `init_dirs()` (`DIRS` map), `FILES` map, `PROXY_FLAGS`.
 - `lib/registry.sh` — `MODULES_ORDER` and how metadata is parsed.
+- `Dockerfile` — what tools are already installed and how they are added.
 - 2–3 existing modules in `modules/` closest to the requested capability (e.g.
   `subdomain_enum.sh`, `shodan_search.sh`, `wordpress_scan.sh`, `katana_web_crawl.sh`).
 
