@@ -5,15 +5,22 @@ MODULE_NAME="linkfinder_analysis"
 MODULE_DESC="Find links in files with linkfinder & xnLinkFinder"
 
 module_init() {
-    # Get JS files from download step
-    JS_DIR="${DIRS[JS_DOWNLOADED]}"
+    # Collect all directories that contain JS/response files to analyze.
+    # downloaded_js_files/ — explicitly fetched .js files (via js_download)
+    # katana_downloaded_data/ — raw responses stored by katana -sr, includes
+    #   JS fetched via scroll-triggered or dynamically injected requests that
+    #   never made it into the httpx probe list and therefore missed js_download.
+    declare -ga JS_DIRS=()
+    [[ -d "${DIRS[JS_DOWNLOADED]}" ]] && [[ -n "$(ls -A "${DIRS[JS_DOWNLOADED]}" 2>/dev/null)" ]] && \
+        JS_DIRS+=("${DIRS[JS_DOWNLOADED]}")
+    [[ -d "${DIRS[KATANA_DATA]}" ]] && [[ -n "$(ls -A "${DIRS[KATANA_DATA]}" 2>/dev/null)" ]] && \
+        JS_DIRS+=("${DIRS[KATANA_DATA]}")
 
-    if ! [[ -d "$JS_DIR" ]] || [[ -z "$(ls -A "$JS_DIR" 2>/dev/null)" ]]; then
-        log_info "No JavaScript files found from previous step - skipping JS analysis"
-        return 1  # Return non-zero to skip module_run
+    if [[ ${#JS_DIRS[@]} -eq 0 ]]; then
+        log_info "No JavaScript files found from previous steps - skipping JS analysis"
+        return 1
     fi
 
-    # Create output directories only if we have JS files to analyze
     mkdir -p "${DIRS[URLS_LINKFINDER]}"
     mkdir -p "${DIRS[XNLINKFINDER]}"
 }
@@ -21,17 +28,21 @@ module_init() {
 module_run() {
     log_info "Analyzing JavaScript files"
 
-    local js_count=$(find "$JS_DIR" -name "*.js" -type f | wc -l)
-    log_info "Analyzing $js_count JavaScript files..."
+    local js_count=0
+    for dir in "${JS_DIRS[@]}"; do
+        js_count=$((js_count + $(find "$dir" -type f | wc -l)))
+    done
+    log_info "Analyzing $js_count files across ${#JS_DIRS[@]} source(s): ${JS_DIRS[*]}"
 
-    # Run linkfinder
+    # Run linkfinder against each source directory
     if command -v linkfinder &> /dev/null; then
         log_info "Running linkfinder..."
-        linkfinder -i "$JS_DIR" \
-                   --out-dir "${DIRS[URLS_LINKFINDER]}" \
-                   --unknown-domain "${DIRS[URLS_LINKFINDER]}/${FILES[LINKFINDER_UNKNOWN_DOMAINS]}" > /dev/null 2>&1 || true
+        for dir in "${JS_DIRS[@]}"; do
+            linkfinder -i "$dir" \
+                       --out-dir "${DIRS[URLS_LINKFINDER]}" \
+                       --unknown-domain "${DIRS[URLS_LINKFINDER]}/${FILES[LINKFINDER_UNKNOWN_DOMAINS]}" > /dev/null 2>&1 || true
+        done
 
-        # Process linkfinder output files
         for file in "${DIRS[URLS_LINKFINDER]}"/*.txt; do
             [[ -f "$file" ]] && dedupe_file "$file"
         done
@@ -39,16 +50,17 @@ module_run() {
         log_warn "linkfinder not found - skipping JavaScript link analysis"
     fi
 
-    # Run additional xnLinkFinder on JS files
+    # Run xnLinkFinder against each source directory
     if command -v xnLinkFinder &> /dev/null; then
         log_info "Running xnLinkFinder on JavaScript files..."
-        xnLinkFinder -i "$JS_DIR" \
-                     -sp "$DOMAIN" -sf "$DOMAIN" \
-                     -o "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_JS_OUTPUT]}" \
-                     -op "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_JS_PARAMS]}" \
-                     -oo "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_JS_OUT_OF_SCOPE]}" > /dev/null 2>&1 || true
+        for dir in "${JS_DIRS[@]}"; do
+            xnLinkFinder -i "$dir" \
+                         -sp "$DOMAIN" -sf "$DOMAIN" \
+                         -o "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_JS_OUTPUT]}" \
+                         -op "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_JS_PARAMS]}" \
+                         -oo "${DIRS[XNLINKFINDER]}/${FILES[XNLINKFINDER_JS_OUT_OF_SCOPE]}" > /dev/null 2>&1 || true
+        done
 
-        # Deduplicate xnLinkFinder files
         for file in "${DIRS[XNLINKFINDER]}"/*.txt; do
             [[ -f "$file" ]] && dedupe_file "$file"
         done
@@ -62,8 +74,6 @@ module_run() {
     done
 
     log_info "Found $total_urls URLs/endpoints across $found_files output files"
-
-    # Update latest symlink
 
     return 0
 }
