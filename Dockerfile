@@ -183,13 +183,16 @@ RUN set -ex && \
     echo "Public Go tools installed"
 
 # ============================================
-# Install katana (requires CGO)
+# Install katana from 0xQRx fork (adds -ss scroll simulation)
 # ============================================
 RUN set -ex && \
     export PATH="/usr/local/go/bin:$PATH" && \
     export GOBIN="/root/go/bin" && \
-    CGO_ENABLED=1 go install -v github.com/projectdiscovery/katana/cmd/katana@latest && \
-    echo "Katana installed"
+    git clone --depth=1 -b dev https://github.com/0xQRx/katana.git /tmp/katana && \
+    cd /tmp/katana && \
+    CGO_ENABLED=1 go build -o "${GOBIN}/katana" ./cmd/katana/ && \
+    rm -rf /tmp/katana && \
+    echo "Katana (0xQRx fork) installed"
 
 # ============================================
 # Install private Go tools (with GOPRIVATE)
