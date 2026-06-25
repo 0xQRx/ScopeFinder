@@ -40,6 +40,15 @@ module_run() {
         log_warn "Skipping shosubgo - SHODAN_API_KEY not set"
     fi
 
+    # Strip invalid entries before deduplication:
+    # - DNS-only names starting with _ (_dmarc, _domainkey, _acme-challenge, etc.)
+    # - Tool error/warning strings ("invalid character", JSON noise, etc.)
+    # - Anything that isn't a well-formed hostname (alphanumeric labels, hyphens, dots)
+    if [[ -f "$SUBDOMAINS_FILE" ]]; then
+        grep -E '^[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}$' "$SUBDOMAINS_FILE" \
+            > "${SUBDOMAINS_FILE}.clean" && mv "${SUBDOMAINS_FILE}.clean" "$SUBDOMAINS_FILE" || true
+    fi
+
     # Deduplicate and sort
     log_info "Deduplicating results..."
     dedupe_file "$SUBDOMAINS_FILE"
