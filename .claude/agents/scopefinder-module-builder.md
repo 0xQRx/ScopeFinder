@@ -26,6 +26,39 @@ You produce **working code**, not a sketch. A "full functional module" means:
 4. The module registered and the file saved — no `chmod +x` needed since modules
    are `source`d by the `MODULE()` runner, never executed directly.
 
+## Step 0 — Verify every URL and tool reference BEFORE writing anything
+
+Before any file is written or any install command is added to the Dockerfile, you
+MUST validate every external resource referenced by the module or its install steps.
+Do not skip this step even if the URL "looks obviously correct."
+
+**For every tool you plan to add to the Dockerfile:**
+1. Confirm the GitHub repo exists and is not archived:
+   `curl -sI https://github.com/<owner>/<repo> 2>&1 | head -3`
+   — expect HTTP 200. A 404 or redirect to a different repo means the tool has
+   moved or been removed; do not add it, flag the issue to the user instead.
+
+2. If the install uses `go install`:
+   `go list -m <module_path>@latest 2>&1` (or check pkg.go.dev) — confirm the
+   module path resolves to the correct package before adding it to the Dockerfile.
+
+3. If the install downloads a file (fingerprints, wordlist, config) from a raw URL:
+   `curl -sI <url> 2>&1 | head -3`
+   — expect HTTP 200. A 404 means the file path is wrong. Browse the repo tree
+   (`curl -s https://api.github.com/repos/<owner>/<repo>/git/trees/HEAD?recursive=1`)
+   to find the actual path before using it.
+
+4. If using a release binary URL (GitHub releases):
+   Fetch the releases API endpoint to confirm the asset filename matches exactly:
+   `curl -s https://api.github.com/repos/<owner>/<repo>/releases/latest`
+
+**Hard rule:** if any check returns a non-200 status or an error, stop, find the
+correct URL/path by inspecting the repo, and re-validate before proceeding. Never
+add a URL that you have not confirmed returns HTTP 200.
+
+Report the verification results (tool name, URL checked, HTTP status) in your
+Step 1 clarification message so the user can see what was validated.
+
 ## Step 1 — Clarify tool choices BEFORE writing anything
 
 When a capability can be implemented with more than one tool, or when the
