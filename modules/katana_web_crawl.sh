@@ -31,12 +31,19 @@ module_run() {
     # Get proxy flag
     local proxy_flag=$(get_proxy_flag "katana")
 
-    # Your exact katana command preserved
+    # Restrict crawling to the target domain and its subdomains.
+    # Dots escaped so "example.com" matches as a literal suffix, not any char.
+    # This prevents katana from spidering external CDNs/third-party domains;
+    # external JS URLs are still discovered and output (useful for recon) but
+    # not followed. Downstream httpx_url_probe already filters output to scope.
+    local scope_regex="${DOMAIN//./\\.}"
+
     katana -list "$LIVE_SUBS" \
            -headless -no-sandbox -jc \
            -d 2 -c 10 -p 2 -rl 10 -rlm 120 -ct 5m -mrs 10485760 \
            -timeout 5 -retry 2 \
            -ss -ssd 2000 \
+           -cs "$scope_regex" \
            -o "${DIRS[URLS_ARTIFACTS]}/${FILES[CRAWLED_URLS]}" \
            -silent -sr -srd "${DIRS[KATANA_DATA]}" \
            -ef png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf,css \
