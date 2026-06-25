@@ -5,7 +5,7 @@
 *.config/waymore/results/*
 *.config/go
 *.config/chromium/*
-.claude
+.claude/*.json
 ScopeFinder-dev.sh
 ScopeFinder2.0/.config
 *.cfg
