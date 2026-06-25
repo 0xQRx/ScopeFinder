@@ -36,6 +36,7 @@ module_run() {
            -headless -no-sandbox -jc \
            -d 2 -c 10 -p 2 -rl 10 -rlm 120 -ct 5m -mrs 10485760 \
            -timeout 5 -retry 2 \
+           -ss -ssd 2000 \
            -o "${DIRS[URLS_ARTIFACTS]}/${FILES[CRAWLED_URLS]}" \
            -silent -sr -srd "${DIRS[KATANA_DATA]}" \
            -ef png,jpg,jpeg,gif,svg,woff,woff2,ttf,eot,otf,ico,webp,mp4,pdf,css \
