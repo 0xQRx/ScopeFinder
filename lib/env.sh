@@ -40,6 +40,8 @@ init_dirs() {
     DIRS[GRAPHQL]="${domain}/graphql"
     DIRS[GRAPHQL_COP]="${domain}/graphql/cop"
     DIRS[GRAPHQL_SDL]="${domain}/graphql/sdl"
+    DIRS[API_DOCS]="${domain}/api_docs"
+    DIRS[API_DOCS_SPECS]="${domain}/api_docs/specs"
 
     # Downloaded/raw data directories (in urls/artifacts to match original)
     DIRS[DOWNLOADED_DATA]="${domain}/urls/artifacts/downloaded_data"
@@ -109,6 +111,7 @@ declare -A FILES=(
     [XNLINKFINDER_JS_OUT_OF_SCOPE]="xnLinkFinder_js_out_of_scope_urls.txt"
     [MSFTRECON_OUTPUT]="msftrecon.txt"
     [GRAPHQL_ENDPOINTS]="graphql_endpoints.txt"
+    [API_DOCS_ENDPOINTS]="api_docs_endpoints.txt"
 )
 
 # Tool-specific proxy configurations

@@ -21,6 +21,7 @@ declare -a MODULES_ORDER=(
     "extract_params"       # URL sorting and parameter extraction
     "httpx_url_probe"            # URL deduplication and live probing
     "graphql_probe"        # Discover, confirm, audit GraphQL endpoints and export SDL
+    "api_docs_probe"       # Discover, confirm API docs (OpenAPI/Swagger/ReDoc) and save specs
     "js_download"          # JavaScript file download
     "linkfinder_analysis"  # Find links (linkfinder)
     "secret_scan"          # Secret scanning (jshunter, trufflehog)
