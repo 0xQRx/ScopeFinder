@@ -22,12 +22,37 @@ module_init() {
     # Endpoints output file
     ENDPOINTS_FILE="${DIRS[GRAPHQL]}/${FILES[GRAPHQL_ENDPOINTS]}"
 
-    # Curated common GraphQL paths for active probing
+    # Common GraphQL paths for active probing. Merged from SecLists
+    # Discovery/Web-Content/graphql.txt (static .css/.js assets excluded) plus a
+    # few extras (/gql, /query, /index.php?graphql). IDE/schema paths are kept so
+    # exposed GraphiQL/Playground/schema dumps are probed too.
+    # Ordered by likelihood: real API endpoint paths first, then IDE pages
+    # (graphiql/playground/altair/…), then schema dumps, then the generic /api.
+    # Order matters because active-probe stops on a host after its first hit.
     GQL_COMMON_PATHS=(
-        "/graphql" "/graphiql" "/api/graphql" "/v1/graphql" "/v2/graphql"
-        "/graphql/console" "/graphql.php" "/index.php?graphql" "/gql"
-        "/query" "/api" "/playground" "/subscriptions" "/altair"
-        "/graphql/v1" "/api/gql"
+        "/___graphql" "/api/gql" "/api/graphql" "/gql"
+        "/graphql" "/graphql.php" "/graphql/api" "/graphql/graphql"
+        "/graphql/v1" "/index.php?graphql" "/je/graphql" "/query"
+        "/server/api/graphql" "/subscriptions" "/v1/api/graphql" "/v1/graphql"
+        "/v1/graphql.php" "/v1/subscriptions" "/v2/api/graphql" "/v2/graphql"
+        "/v2/graphql.php" "/v2/subscriptions" "/v3/api/graphql" "/v3/graphql"
+        "/v3/graphql.php" "/v3/subscriptions" "/v4/api/graphql" "/v4/graphql"
+        "/v4/graphql.php" "/v4/subscriptions" "/altair" "/explorer"
+        "/graph" "/graphiql" "/graphiql.php" "/graphiql/finland"
+        "/graphql-explorer" "/graphql/console" "/playground" "/v1/altair"
+        "/v1/explorer" "/v1/graph" "/v1/graphiql" "/v1/graphiql.php"
+        "/v1/graphiql/finland" "/v1/graphql-explorer" "/v1/graphql/console" "/v1/playground"
+        "/v2/altair" "/v2/explorer" "/v2/graph" "/v2/graphiql"
+        "/v2/graphiql.php" "/v2/graphiql/finland" "/v2/graphql-explorer" "/v2/graphql/console"
+        "/v2/playground" "/v3/altair" "/v3/explorer" "/v3/graph"
+        "/v3/graphiql" "/v3/graphiql.php" "/v3/graphiql/finland" "/v3/graphql-explorer"
+        "/v3/graphql/console" "/v3/playground" "/v4/altair" "/v4/explorer"
+        "/v4/graph" "/v4/graphiql" "/v4/graphiql.php" "/v4/graphiql/finland"
+        "/v4/graphql-explorer" "/v4/graphql/console" "/v4/playground" "/graphql/schema.json"
+        "/graphql/schema.xml" "/graphql/schema.yaml" "/v1/graphql/schema.json" "/v1/graphql/schema.xml"
+        "/v1/graphql/schema.yaml" "/v2/graphql/schema.json" "/v2/graphql/schema.xml" "/v2/graphql/schema.yaml"
+        "/v3/graphql/schema.json" "/v3/graphql/schema.xml" "/v3/graphql/schema.yaml" "/v4/graphql/schema.json"
+        "/v4/graphql/schema.xml" "/v4/graphql/schema.yaml" "/api"
     )
 
     # curl proxy flag (curl is always present; honor HTTP_PROXY_URL)
@@ -48,6 +73,15 @@ normalize_endpoint() {
     url="${url%%#*}"
     url="${url%%\?*}"
     echo "$url"
+}
+
+# Decide whether a response body looks like a GraphQL reply to {__typename}.
+# Real endpoints echo the __typename value or return a GraphQL data/errors
+# envelope; HTML IDE pages and 404s do not.
+is_graphql_response() {
+    local body="$1"
+    [[ -n "$body" ]] || return 1
+    [[ "$body" == *"__typename"* || "$body" == *'"data"'* || "$body" == *'"errors"'* ]]
 }
 
 # Turn an endpoint URL into a filesystem-safe slug (host + path)
@@ -75,28 +109,38 @@ module_run() {
             [[ "$line" =~ ^https?:// ]] || continue
             local ep
             ep="$(normalize_endpoint "$line")"
-            [[ -n "$ep" ]] && echo "$ep" >> "$candidates_file"
+            [[ -n "$ep" ]] || continue
+            # Skip static assets (e.g. graphql-*.js bundles) — they match the
+            # indicator regex by filename but are never live GraphQL endpoints.
+            [[ "$ep" =~ \.(js|css|map|png|jpe?g|gif|svg|woff2?|ttf|ico|webp)$ ]] && continue
+            echo "$ep" >> "$candidates_file"
             ((harvested++))
         done < <(grep -iE "$gql_regex" "$src" 2>/dev/null || true)
     done
     log_info "Harvested $harvested GraphQL indicator(s) from URL sources"
 
     # --- Discovery B: ACTIVE PROBE common paths on each live subdomain ---
+    # live_subdomains.txt holds bare hostnames (e.g. admin-graph.example.com),
+    # but crawl/waymore entries are full URLs. Accept both: prepend https:// to
+    # scheme-less hosts so each host is probed at every common GraphQL path.
     if check_file "$LIVE_SUBS"; then
         while IFS= read -r base; do
             [[ -n "$base" ]] || continue
-            [[ "$base" =~ ^https?:// ]] || continue
             # Strip any trailing slash on the base
             base="${base%/}"
+            if [[ ! "$base" =~ ^https?:// ]]; then
+                base="https://${base}"
+            fi
             for p in "${GQL_COMMON_PATHS[@]}"; do
                 echo "${base}${p}" >> "$candidates_file"
             done
         done < "$LIVE_SUBS"
     fi
 
-    # Merge + sort unique
+    # Remove duplicates but PRESERVE order (harvested first, then active-probe
+    # paths in likelihood order). Do not sort: order decides which path is tried
+    # first per host before the per-host short-circuit below kicks in.
     dedupe_file "$candidates_file"
-    sort -u "$candidates_file" -o "$candidates_file" 2>/dev/null || true
 
     local candidate_count=0
     [[ -f "$candidates_file" ]] && candidate_count=$(wc -l < "$candidates_file")
@@ -109,28 +153,54 @@ module_run() {
         return 0
     fi
 
-    # --- CONFIRM: POST a minimal query, keep only real GraphQL endpoints ---
-    log_info "Confirming candidate endpoints (POST {__typename})..."
+    # --- CONFIRM: probe with a minimal query, keep only real GraphQL endpoints ---
+    # POST is the primary probe (most GraphQL servers are POST-only), with a GET
+    # fallback whenever POST does not confirm — this covers POST-only endpoints,
+    # GET-only endpoints, and cases where one method is blocked (WAF/CSRF) while
+    # the other still answers.
+    # Stop probing a host once one GraphQL endpoint is confirmed on it: no point
+    # hammering the other ~90 paths of a host we've already fingerprinted. We keep
+    # the FIRST (highest-likelihood) endpoint per host. Set GRAPHQL_PROBE_ALL=1 to
+    # probe every path exhaustively (find multiple endpoints per host) instead.
+    log_info "Confirming candidate endpoints (POST then GET {__typename})..."
     local confirmed_file="${DIRS[GRAPHQL]}/.gql_confirmed.txt"
     : > "$confirmed_file"
 
+    local stop_on_first=1
+    [[ "${GRAPHQL_PROBE_ALL:-0}" == "1" ]] && stop_on_first=0
+
     local query='{"query":"{__typename}"}'
+    declare -A host_done=()
     while IFS= read -r candidate; do
         [[ -n "$candidate" ]] || continue
+
+        # host key = scheme://netloc; skip if this host already yielded an endpoint
+        local host
+        host="$(printf '%s' "$candidate" | sed -E 's#^(https?://[^/]+).*#\1#')"
+        if [[ "$stop_on_first" -eq 1 && -n "${host_done[$host]:-}" ]]; then
+            continue
+        fi
+
+        # 1) POST application/json (primary)
         local body
         body="$(curl -sk -m 10 "${CURL_PROXY[@]}" -X POST \
                     -H 'Content-Type: application/json' \
                     --data "$query" "$candidate" 2>/dev/null || true)"
 
-        if [[ -z "$body" ]]; then
-            # Retry with GET as a fallback
-            body="$(curl -sk -m 10 "${CURL_PROXY[@]}" -G \
-                        --data-urlencode 'query={__typename}' \
-                        "$candidate" 2>/dev/null || true)"
+        if is_graphql_response "$body"; then
+            echo "$candidate" >> "$confirmed_file"
+            [[ "$stop_on_first" -eq 1 ]] && host_done[$host]=1
+            continue
         fi
 
-        if [[ "$body" == *"__typename"* || "$body" == *'"data"'* || "$body" == *'"errors"'* ]]; then
+        # 2) GET ?query={__typename} (fallback whenever POST did not confirm)
+        body="$(curl -sk -m 10 "${CURL_PROXY[@]}" -G \
+                    --data-urlencode 'query={__typename}' \
+                    "$candidate" 2>/dev/null || true)"
+
+        if is_graphql_response "$body"; then
             echo "$candidate" >> "$confirmed_file"
+            [[ "$stop_on_first" -eq 1 ]] && host_done[$host]=1
         fi
     done < "$candidates_file"
 
