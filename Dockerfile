@@ -216,6 +216,7 @@ RUN set -ex && \
     pipx install git+https://github.com/xnl-h4ck3r/xnLinkFinder.git && \
     pipx install git+https://github.com/0xQRx/msftrecon.git && \
     pipx install uro && \
+    pipx install git+https://github.com/0xQRx/graphql-cop.git && \
     echo "Python tools installed"
 
 # ============================================

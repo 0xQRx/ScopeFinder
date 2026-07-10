@@ -20,6 +20,7 @@ declare -a MODULES_ORDER=(
     "extract_inline_scripts"     # Extract inline scripts with dynamic URLs
     "extract_params"       # URL sorting and parameter extraction
     "httpx_url_probe"            # URL deduplication and live probing
+    "graphql_probe"        # Discover, confirm, audit GraphQL endpoints and export SDL
     "js_download"          # JavaScript file download
     "linkfinder_analysis"  # Find links (linkfinder)
     "secret_scan"          # Secret scanning (jshunter, trufflehog)
