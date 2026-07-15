@@ -223,29 +223,20 @@ module_run() {
 
         # Rotate the browser User-Agent per candidate
         pick_user_agent
-        # Capture status code AND body in ONE request (-w appends "\n<code>", which
-        # we split back off) so each probe's HTTP status is logged without issuing
-        # a second request.
-        local resp code body
-        resp="$(curl -sk -m 10 -L --max-redirs 3 "${CURL_PROXY[@]}" \
+        local body
+        body="$(curl -sk -m 10 -L --max-redirs 3 "${CURL_PROXY[@]}" \
                     -A "$SELECTED_UA" \
                     -H 'Accept: application/json, application/yaml, text/html' \
-                    -w $'\n%{http_code}' "$candidate" 2>/dev/null || true)"
-        code="${resp##*$'\n'}"
-        body="${resp%$'\n'*}"
+                    "$candidate" 2>/dev/null || true)"
+        [[ -n "$body" ]] || continue
+
         local slug
         slug="$(slugify_endpoint "$candidate")"
         [[ -n "$slug" ]] || slug="endpoint"
 
-        # Classify once; log the decision plus a sanitized head of the body so a
-        # non-confirming 200 can be diagnosed from the log alone.
         local klass="none"
-        if [[ -n "$body" ]]; then
-            if is_openapi_spec "$body"; then klass="spec"
-            elif is_api_docs_ui "$body"; then klass="ui"; fi
-        fi
-        local head="${body:0:50}"; head="${head//$'\n'/\\n}"
-        log_info "probe[$tier] http=$code len=${#body} class=$klass $candidate head=[$head]"
+        if is_openapi_spec "$body"; then klass="spec"
+        elif is_api_docs_ui "$body"; then klass="ui"; fi
         [[ "$klass" == "none" ]] && continue
 
         if [[ "$klass" == "spec" ]]; then
