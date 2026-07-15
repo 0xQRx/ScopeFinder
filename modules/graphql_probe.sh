@@ -91,7 +91,11 @@ is_graphql_response() {
     [[ "$body" == *'__typename'* && "$body" == *'"data"'* ]] && return 0
     # 2) GraphQL-shaped error envelope (distinguish from a generic REST error)
     if [[ "$body" == *'"errors"'* ]]; then
-        printf '%s' "$body" | grep -qiE '"locations"|"extensions"|Cannot query field|Syntax Error|must provide (a )?query|GraphQL|Unknown argument|Unexpected (token|Name)|did you mean' && return 0
+        # Here-string, NOT `printf ... | grep -q`: under `set -o pipefail` (as in
+        # ScopeFinder.sh), grep -q exits the instant it matches, which can SIGPIPE
+        # a still-writing printf on a large body — pipefail then reports printf's
+        # SIGPIPE exit code instead of grep's success, hiding a genuine match.
+        grep -qiE '"locations"|"extensions"|Cannot query field|Syntax Error|must provide (a )?query|GraphQL|Unknown argument|Unexpected (token|Name)|did you mean' <<< "$body" && return 0
     fi
     return 1
 }

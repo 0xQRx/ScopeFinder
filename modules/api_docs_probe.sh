@@ -104,7 +104,13 @@ is_openapi_spec() {
     # JSON-style: "openapi": "3.0.x" / "swagger": "2.0"
     [[ "$body" == *'"swagger"'* || "$body" == *'"openapi"'* || "$body" == *'"asyncapi"'* ]] && return 0
     # YAML-style: top-of-document  openapi: 3.0.0  /  swagger: "2.0"
-    printf '%s' "$body" | grep -qiE '^[[:space:]]*(swagger|openapi|asyncapi)[[:space:]]*:' && return 0
+    # Use a here-string, NOT `printf ... | grep -q`: under `set -o pipefail` (as in
+    # ScopeFinder.sh), grep -q exits the instant it matches — often almost
+    # immediately for a match on line 1 of a large body — which can SIGPIPE the
+    # still-writing printf. pipefail then reports the pipeline's status as
+    # printf's SIGPIPE exit code instead of grep's success, making a genuine
+    # match look like "no match". A here-string has no live pipe, so no race.
+    grep -qiE '^[[:space:]]*(swagger|openapi|asyncapi)[[:space:]]*:' <<< "$body" && return 0
     return 1
 }
 
@@ -112,7 +118,8 @@ is_openapi_spec() {
 is_api_docs_ui() {
     local body="$1"
     [[ -n "$body" ]] || return 1
-    printf '%s' "$body" | grep -qiE 'swagger-?ui|swaggeruibundle|redoc|rapidoc|stoplight-elements|swagger ui' && return 0
+    # Here-string — see is_openapi_spec for why (pipefail + grep -q early-exit race).
+    grep -qiE 'swagger-?ui|swaggeruibundle|redoc|rapidoc|stoplight-elements|swagger ui' <<< "$body" && return 0
     return 1
 }
 
