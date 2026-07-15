@@ -216,11 +216,18 @@ module_run() {
 
         # Rotate the browser User-Agent per candidate
         pick_user_agent
-        local body
-        body="$(curl -sk -m 10 -L --max-redirs 3 "${CURL_PROXY[@]}" \
+        # Capture status code AND body in ONE request (-w appends "\n<code>", which
+        # we split back off) so API_DOCS_DEBUG can report what each probe returned
+        # without issuing a second request.
+        local resp code body
+        resp="$(curl -sk -m 10 -L --max-redirs 3 "${CURL_PROXY[@]}" \
                     -A "$SELECTED_UA" \
                     -H 'Accept: application/json, application/yaml, text/html' \
-                    "$candidate" 2>/dev/null || true)"
+                    -w $'\n%{http_code}' "$candidate" 2>/dev/null || true)"
+        code="${resp##*$'\n'}"
+        body="${resp%$'\n'*}"
+        [[ "${API_DOCS_DEBUG:-0}" == "1" ]] && \
+            log_info "DEBUG probe[$tier] http=$code len=${#body} $candidate"
         [[ -n "$body" ]] || continue
 
         local slug
