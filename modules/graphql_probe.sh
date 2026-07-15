@@ -125,7 +125,8 @@ module_run() {
             # Skip static assets (e.g. graphql-*.js bundles) — they match the
             # indicator regex by filename but are never live GraphQL endpoints.
             [[ "$ep" =~ \.(js|css|map|png|jpe?g|gif|svg|woff2?|ttf|ico|webp)$ ]] && continue
-            echo "$ep" >> "$candidates_file"
+            # Tier H = harvested from real output (high-signal, always confirmed)
+            printf 'H\t%s\n' "$ep" >> "$candidates_file"
             ((harvested++))
         done < <(grep -iE "$gql_regex" "$src" 2>/dev/null || true)
     done
@@ -144,15 +145,20 @@ module_run() {
                 base="https://${base}"
             fi
             for p in "${GQL_COMMON_PATHS[@]}"; do
-                echo "${base}${p}" >> "$candidates_file"
+                # Tier A = active-probe brute path (subject to per-host stop)
+                printf 'A\t%s\n' "${base}${p}" >> "$candidates_file"
             done
         done < "$LIVE_SUBS"
     fi
 
-    # Remove duplicates but PRESERVE order (harvested first, then active-probe
-    # paths in likelihood order). Do not sort: order decides which path is tried
-    # first per host before the per-host short-circuit below kicks in.
-    dedupe_file "$candidates_file"
+    # De-duplicate by URL (2nd field) PRESERVING order — harvested (H) first, then
+    # active (A) paths in likelihood order. A URL seen in both tiers keeps its H
+    # entry (written first), so it is treated as harvested. Do not sort: order
+    # decides which path is tried first per host before the per-host stop kicks in.
+    if [[ -f "$candidates_file" ]]; then
+        awk -F'\t' '!seen[$2]++' "$candidates_file" > "${candidates_file}.tmp" \
+            && mv "${candidates_file}.tmp" "$candidates_file"
+    fi
 
     local candidate_count=0
     [[ -f "$candidates_file" ]] && candidate_count=$(wc -l < "$candidates_file")
@@ -170,10 +176,14 @@ module_run() {
     # fallback whenever POST does not confirm — this covers POST-only endpoints,
     # GET-only endpoints, and cases where one method is blocked (WAF/CSRF) while
     # the other still answers.
-    # Stop probing a host once one GraphQL endpoint is confirmed on it: no point
-    # hammering the other ~90 paths of a host we've already fingerprinted. We keep
-    # the FIRST (highest-likelihood) endpoint per host. Set GRAPHQL_PROBE_ALL=1 to
-    # probe every path exhaustively (find multiple endpoints per host) instead.
+    # Two-tier confirmation. Harvested (H) URLs came from real output, so EVERY one
+    # is confirmed first and none is ever suppressed. Active-probe (A) brute paths
+    # are subject to the per-host stop: once a host yields one endpoint (whether via
+    # a harvested hit or an earlier active hit) we stop hammering its other ~90
+    # paths, keeping the FIRST (highest-likelihood) one. Because all H lines sort
+    # before A lines, a URL found in output always wins and a harvested confirmation
+    # skips that host's active probing entirely. Set GRAPHQL_PROBE_ALL=1 to probe
+    # every active path exhaustively (H is always exhaustive regardless).
     log_info "Confirming candidate endpoints (POST then GET {__typename})..."
     local confirmed_file="${DIRS[GRAPHQL]}/.gql_confirmed.txt"
     : > "$confirmed_file"
@@ -183,13 +193,14 @@ module_run() {
 
     local query='{"query":"{__typename}"}'
     declare -A host_done=()
-    while IFS= read -r candidate; do
+    while IFS=$'\t' read -r tier candidate; do
         [[ -n "$candidate" ]] || continue
 
-        # host key = scheme://netloc; skip if this host already yielded an endpoint
+        # host key = scheme://netloc. Per-host stop applies ONLY to active (A)
+        # candidates; harvested (H) URLs are always checked.
         local host
         host="$(printf '%s' "$candidate" | sed -E 's#^(https?://[^/]+).*#\1#')"
-        if [[ "$stop_on_first" -eq 1 && -n "${host_done[$host]:-}" ]]; then
+        if [[ "$tier" == "A" && "$stop_on_first" -eq 1 && -n "${host_done[$host]:-}" ]]; then
             continue
         fi
 
@@ -204,7 +215,9 @@ module_run() {
 
         if is_graphql_response "$body"; then
             echo "$candidate" >> "$confirmed_file"
-            [[ "$stop_on_first" -eq 1 ]] && host_done[$host]=1
+            # A harvested hit always suppresses this host's active probing; an
+            # active hit does so only under stop_on_first.
+            [[ "$tier" == "H" || "$stop_on_first" -eq 1 ]] && host_done[$host]=1
             continue
         fi
 
@@ -215,12 +228,11 @@ module_run() {
 
         if is_graphql_response "$body"; then
             echo "$candidate" >> "$confirmed_file"
-            [[ "$stop_on_first" -eq 1 ]] && host_done[$host]=1
+            [[ "$tier" == "H" || "$stop_on_first" -eq 1 ]] && host_done[$host]=1
         fi
     done < "$candidates_file"
 
     dedupe_file "$confirmed_file"
-    sort -u "$confirmed_file" -o "$confirmed_file" 2>/dev/null || true
     mv "$confirmed_file" "$ENDPOINTS_FILE"
     rm -f "$candidates_file"
 

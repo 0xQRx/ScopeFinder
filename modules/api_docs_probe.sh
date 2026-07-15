@@ -138,7 +138,8 @@ module_run() {
             # Skip static assets (swagger-ui.js/.css bundles match by name but are
             # not the doc endpoint itself).
             [[ "$ep" =~ \.(js|css|map|png|jpe?g|gif|svg|woff2?|ttf|ico|webp)$ ]] && continue
-            echo "$ep" >> "$candidates_file"
+            # Tier H = harvested from real output (high-signal, always confirmed)
+            printf 'H\t%s\n' "$ep" >> "$candidates_file"
             ((harvested++))
         done < <(grep -iE "$api_regex" "$src" 2>/dev/null || true)
     done
@@ -155,15 +156,20 @@ module_run() {
                 base="https://${base}"
             fi
             for p in "${API_DOCS_PATHS[@]}"; do
-                echo "${base}${p}" >> "$candidates_file"
+                # Tier A = active-probe brute path (subject to per-host stop)
+                printf 'A\t%s\n' "${base}${p}" >> "$candidates_file"
             done
         done < "$LIVE_SUBS"
     fi
 
-    # Remove duplicates but PRESERVE order (harvested first, then active-probe
-    # paths in spec-first likelihood order). Order decides which path per host is
-    # confirmed first before the per-host short-circuit kicks in.
-    dedupe_file "$candidates_file"
+    # De-duplicate by URL (2nd field) PRESERVING order — harvested (H) first, then
+    # active (A) paths in spec-first likelihood order. A URL seen in both tiers
+    # keeps its H entry (written first), so it is treated as harvested. Order
+    # decides which path per host is confirmed first before the per-host stop kicks in.
+    if [[ -f "$candidates_file" ]]; then
+        awk -F'\t' '!seen[$2]++' "$candidates_file" > "${candidates_file}.tmp" \
+            && mv "${candidates_file}.tmp" "$candidates_file"
+    fi
 
     local candidate_count=0
     [[ -f "$candidates_file" ]] && candidate_count=$(wc -l < "$candidates_file")
@@ -180,9 +186,14 @@ module_run() {
     # API docs are always served over GET. A response is confirmed only if its body
     # is an OpenAPI/Swagger spec or a rendered docs UI — a plain 200 (SPA index,
     # generic page) is not enough, which keeps false positives low.
-    # Stop probing a host once one doc endpoint is confirmed on it (spec paths are
-    # ordered first, so the machine-readable spec wins). Set API_DOCS_PROBE_ALL=1
-    # to probe every path exhaustively instead.
+    # Two-tier confirmation. Harvested (H) URLs came from real output, so EVERY one
+    # is confirmed first and none is ever suppressed. Active-probe (A) brute paths
+    # are subject to the per-host stop: once a host yields one doc endpoint (via a
+    # harvested hit or an earlier active hit), stop probing its other paths (spec
+    # paths are ordered first, so the machine-readable spec wins). Because all H
+    # lines sort before A lines, a URL found in output always wins and a harvested
+    # confirmation skips that host's active probing entirely. Set API_DOCS_PROBE_ALL=1
+    # to probe every active path exhaustively (H is always exhaustive regardless).
     log_info "Confirming candidate endpoints (GET)..."
     local confirmed_file="${DIRS[API_DOCS]}/.apidocs_confirmed.txt"
     : > "$confirmed_file"
@@ -192,12 +203,14 @@ module_run() {
 
     local spec_count=0 ui_count=0
     declare -A host_done=()
-    while IFS= read -r candidate; do
+    while IFS=$'\t' read -r tier candidate; do
         [[ -n "$candidate" ]] || continue
 
+        # Per-host stop applies ONLY to active (A) candidates; harvested (H) URLs
+        # are always checked.
         local host
         host="$(printf '%s' "$candidate" | sed -E 's#^(https?://[^/]+).*#\1#')"
-        if [[ "$stop_on_first" -eq 1 && -n "${host_done[$host]:-}" ]]; then
+        if [[ "$tier" == "A" && "$stop_on_first" -eq 1 && -n "${host_done[$host]:-}" ]]; then
             continue
         fi
 
@@ -221,18 +234,20 @@ module_run() {
             printf '%s' "$body" > "${DIRS[API_DOCS_SPECS]}/${slug}.${ext}"
             echo -e "${candidate}\tspec" >> "$confirmed_file"
             ((spec_count++))
-            [[ "$stop_on_first" -eq 1 ]] && host_done[$host]=1
+            # Harvested hit always skips this host's active probing; active hit does
+            # so only under stop_on_first.
+            [[ "$tier" == "H" || "$stop_on_first" -eq 1 ]] && host_done[$host]=1
             continue
         fi
 
         if is_api_docs_ui "$body"; then
             echo -e "${candidate}\tui" >> "$confirmed_file"
             ((ui_count++))
-            [[ "$stop_on_first" -eq 1 ]] && host_done[$host]=1
+            [[ "$tier" == "H" || "$stop_on_first" -eq 1 ]] && host_done[$host]=1
         fi
     done < "$candidates_file"
 
-    sort -u "$confirmed_file" -o "$confirmed_file" 2>/dev/null || true
+    dedupe_file "$confirmed_file"
     mv "$confirmed_file" "$ENDPOINTS_FILE"
     rm -f "$candidates_file"
 
