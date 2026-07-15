@@ -226,31 +226,38 @@ module_run() {
                     -w $'\n%{http_code}' "$candidate" 2>/dev/null || true)"
         code="${resp##*$'\n'}"
         body="${resp%$'\n'*}"
-        log_info "probe[$tier] http=$code len=${#body} $candidate"
-        [[ -n "$body" ]] || continue
-
         local slug
         slug="$(slugify_endpoint "$candidate")"
         [[ -n "$slug" ]] || slug="endpoint"
 
-        if is_openapi_spec "$body"; then
+        # Classify once; log the decision plus a sanitized head of the body so a
+        # non-confirming 200 can be diagnosed from the log alone.
+        local klass="none"
+        if [[ -n "$body" ]]; then
+            if is_openapi_spec "$body"; then klass="spec"
+            elif is_api_docs_ui "$body"; then klass="ui"; fi
+        fi
+        local head="${body:0:50}"; head="${head//$'\n'/\\n}"
+        log_info "probe[$tier] http=$code len=${#body} class=$klass $candidate head=[$head]"
+        [[ "$klass" == "none" ]] && continue
+
+        if [[ "$klass" == "spec" ]]; then
             # Save the spec document (JSON if it looks like JSON, else YAML)
             local ext="yaml"
-            [[ "$body" == *'"openapi"'* || "$body" == *'"swagger"'* || "$body" == *'"asyncapi"'* ]] && ext="json"
+            case "$body" in *'"openapi"'*|*'"swagger"'*|*'"asyncapi"'*) ext="json";; esac
             printf '%s' "$body" > "${DIRS[API_DOCS_SPECS]}/${slug}.${ext}"
             echo -e "${candidate}\tspec" >> "$confirmed_file"
-            ((spec_count++))
+            ((spec_count++)) || true
             # Harvested hit always skips this host's active probing; active hit does
             # so only under stop_on_first.
             [[ "$tier" == "H" || "$stop_on_first" -eq 1 ]] && host_done[$host]=1
             continue
         fi
 
-        if is_api_docs_ui "$body"; then
-            echo -e "${candidate}\tui" >> "$confirmed_file"
-            ((ui_count++))
-            [[ "$tier" == "H" || "$stop_on_first" -eq 1 ]] && host_done[$host]=1
-        fi
+        # klass == ui
+        echo -e "${candidate}\tui" >> "$confirmed_file"
+        ((ui_count++)) || true
+        [[ "$tier" == "H" || "$stop_on_first" -eq 1 ]] && host_done[$host]=1
     done < "$candidates_file"
 
     dedupe_file "$confirmed_file"
