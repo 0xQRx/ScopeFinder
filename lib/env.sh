@@ -42,6 +42,7 @@ init_dirs() {
     DIRS[GRAPHQL_SDL]="${domain}/graphql/sdl"
     DIRS[API_DOCS]="${domain}/api_docs"
     DIRS[API_DOCS_SPECS]="${domain}/api_docs/specs"
+    DIRS[SUBDOMAIN_TAKEOVER]="${domain}/subdomain_takeover"
 
     # Downloaded/raw data directories (in urls/artifacts to match original)
     DIRS[DOWNLOADED_DATA]="${domain}/urls/artifacts/downloaded_data"
@@ -112,6 +113,7 @@ declare -A FILES=(
     [MSFTRECON_OUTPUT]="msftrecon.txt"
     [GRAPHQL_ENDPOINTS]="graphql_endpoints.txt"
     [API_DOCS_ENDPOINTS]="api_docs_endpoints.txt"
+    [TAKEOVER_RESULTS]="takeover_results.txt"
 )
 
 # Tool-specific proxy configurations

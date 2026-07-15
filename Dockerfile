@@ -180,7 +180,16 @@ RUN set -ex && \
     go install -v github.com/g0ldencybersec/CloudRecon@latest && \
     go install -v github.com/projectdiscovery/asnmap/cmd/asnmap@latest && \
     go install -v github.com/denandz/sourcemapper@latest && \
+    go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest && \
     echo "Public Go tools installed"
+
+# ============================================
+# Bake nuclei templates into the image (faster runtime updates)
+# ============================================
+RUN set -ex && \
+    export PATH="/root/go/bin:$PATH" && \
+    nuclei -update-templates && \
+    echo "Nuclei templates installed"
 
 # ============================================
 # Install katana from 0xQRx fork (adds -ss scroll simulation)
@@ -261,6 +270,7 @@ RUN set -ex && \
     katana -version 2>/dev/null | head -1 && \
     asnmap -version 2>/dev/null | head -1 && \
     sourcemapper -version 2>/dev/null | head -1 && \
+    nuclei -version 2>/dev/null | head -1 && \
     smap -h 2>&1 | head -1 && \
     which crtsh-tool && \
     which jshunter && \

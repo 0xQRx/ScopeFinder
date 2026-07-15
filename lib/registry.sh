@@ -9,6 +9,7 @@ declare -a MODULES_ORDER=(
     "postman_dorks"        # Generates Postman dorks
     "shodan_search"        # Shodan IP search (with org selection)
     "subdomain_enum"       # Subdomain enumeration (multiple sources)
+    "subdomain_takeover"   # Subdomain takeover checks with nuclei (takeover tag)
     "ip_discovery"         # IP discovery from open sources
     "credential_intel"     # Email and leaked credential search
     "waymore_archive_recon" # URL collection from web archives (waymore)
