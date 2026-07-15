@@ -201,8 +201,11 @@ module_run() {
             continue
         fi
 
+        # Rotate the browser User-Agent per candidate
+        pick_user_agent
         local body
         body="$(curl -sk -m 10 -L --max-redirs 3 "${CURL_PROXY[@]}" \
+                    -A "$SELECTED_UA" \
                     -H 'Accept: application/json, application/yaml, text/html' \
                     "$candidate" 2>/dev/null || true)"
         [[ -n "$body" ]] || continue

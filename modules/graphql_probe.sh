@@ -193,9 +193,12 @@ module_run() {
             continue
         fi
 
+        # Rotate the browser User-Agent per candidate (same UA for its POST + GET)
+        pick_user_agent
+
         # 1) POST application/json (primary)
         local body
-        body="$(curl -sk -m 10 "${CURL_PROXY[@]}" -X POST \
+        body="$(curl -sk -m 10 "${CURL_PROXY[@]}" -A "$SELECTED_UA" -X POST \
                     -H 'Content-Type: application/json' \
                     --data "$query" "$candidate" 2>/dev/null || true)"
 
@@ -206,7 +209,7 @@ module_run() {
         fi
 
         # 2) GET ?query={__typename} (fallback whenever POST did not confirm)
-        body="$(curl -sk -m 10 "${CURL_PROXY[@]}" -G \
+        body="$(curl -sk -m 10 "${CURL_PROXY[@]}" -A "$SELECTED_UA" -G \
                     --data-urlencode 'query={__typename}' \
                     "$candidate" 2>/dev/null || true)"
 

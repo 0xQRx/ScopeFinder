@@ -42,7 +42,8 @@ module_run() {
         local provider=$(echo "$url" | sed -n 's|.*/sni-ip-ranges/\([^/]*\)/.*|\1|p')
         log_info "Checking $provider SNI ranges..."
 
-        curl -s "$url" | grep -iE "$DOMAIN|$DOMAIN_BASE_NAME" >> "${DIRS[CLOUD]}/${FILES[CLOUD_SNI_DOMAINS]}" 2>/dev/null || true
+        pick_user_agent
+        curl -s -A "$SELECTED_UA" "$url" | grep -iE "$DOMAIN|$DOMAIN_BASE_NAME" >> "${DIRS[CLOUD]}/${FILES[CLOUD_SNI_DOMAINS]}" 2>/dev/null || true
     done
 
     # Deduplicate results

@@ -67,6 +67,31 @@ get_proxy_flag() {
     fi
 }
 
+# Pick a browser User-Agent for curl-based probing and store it in the global
+# SELECTED_UA. The stock curl/<ver> UA is a common WAF/CDN block trigger, so
+# target-facing curl calls send one of these real browser UAs instead, rotated
+# across calls. Export a single HTTP_USER_AGENT to force one UA instead.
+#
+# This sets a variable rather than echoing on purpose: callers use it as
+#   pick_user_agent; curl -A "$SELECTED_UA" ...
+# NOT as "$(pick_user_agent)". Command substitution forks a subshell that inherits
+# the parent's $RANDOM seed, so an echo-based picker returns the SAME index every
+# call and never rotates. Running in the parent shell lets $RANDOM advance normally.
+SELECTED_UA=""
+pick_user_agent() {
+    if [[ -n "${HTTP_USER_AGENT:-}" ]]; then
+        SELECTED_UA="$HTTP_USER_AGENT"
+        return
+    fi
+    # Re-declare locally since indexed arrays can't be exported to subprocesses
+    local -a uas=(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:152.0) Gecko/20100101 Firefox/152.0"
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+    )
+    SELECTED_UA="${uas[RANDOM % ${#uas[@]}]}"
+}
+
 # File operations
 check_file() {
     local file=$1
