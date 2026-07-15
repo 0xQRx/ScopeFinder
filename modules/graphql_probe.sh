@@ -207,18 +207,11 @@ module_run() {
         # Rotate the browser User-Agent per candidate (same UA for its POST + GET)
         pick_user_agent
 
-        # Capture status code AND body in ONE request (-w appends "\n<code>", split
-        # back off) so GRAPHQL_PROBE_DEBUG can report what each probe returned
-        # without issuing extra requests.
-        local resp code body
         # 1) POST application/json (primary)
-        resp="$(curl -sk -m 10 "${CURL_PROXY[@]}" -A "$SELECTED_UA" -X POST \
+        local body
+        body="$(curl -sk -m 10 "${CURL_PROXY[@]}" -A "$SELECTED_UA" -X POST \
                     -H 'Content-Type: application/json' \
-                    --data "$query" -w $'\n%{http_code}' "$candidate" 2>/dev/null || true)"
-        code="${resp##*$'\n'}"
-        body="${resp%$'\n'*}"
-        [[ "${GRAPHQL_PROBE_DEBUG:-0}" == "1" ]] && \
-            log_info "DEBUG probe[$tier] POST http=$code len=${#body} $candidate"
+                    --data "$query" "$candidate" 2>/dev/null || true)"
 
         if is_graphql_response "$body"; then
             echo "$candidate" >> "$confirmed_file"
@@ -229,13 +222,9 @@ module_run() {
         fi
 
         # 2) GET ?query={__typename} (fallback whenever POST did not confirm)
-        resp="$(curl -sk -m 10 "${CURL_PROXY[@]}" -A "$SELECTED_UA" -G \
+        body="$(curl -sk -m 10 "${CURL_PROXY[@]}" -A "$SELECTED_UA" -G \
                     --data-urlencode 'query={__typename}' \
-                    -w $'\n%{http_code}' "$candidate" 2>/dev/null || true)"
-        code="${resp##*$'\n'}"
-        body="${resp%$'\n'*}"
-        [[ "${GRAPHQL_PROBE_DEBUG:-0}" == "1" ]] && \
-            log_info "DEBUG probe[$tier] GET http=$code len=${#body} $candidate"
+                    "$candidate" 2>/dev/null || true)"
 
         if is_graphql_response "$body"; then
             echo "$candidate" >> "$confirmed_file"
