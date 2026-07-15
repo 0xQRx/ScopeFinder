@@ -21,54 +21,53 @@ module_init() {
     # Endpoints output file (one confirmed URL + type per line)
     ENDPOINTS_FILE="${DIRS[API_DOCS]}/${FILES[API_DOCS_ENDPOINTS]}"
 
-    # Common API-documentation paths for active probing. Curated/deduped from the
-    # standard swagger/openapi cross-product ({'',v1,v2,v3,api,api/v1..} prefixes
-    # x {swagger,openapi,redoc,...} suffixes). Machine-readable spec files are
-    # ordered FIRST (they are the high-value artifact), then human UI pages.
+    # Common API-documentation paths for active probing, GENERATED from a
+    # base × version × file matrix rather than hand-listed so version formats stay
+    # easy to tune. The version set includes dotted/semver forms (v1.0, 1.0, 1.0.0)
+    # so routes like /api/1.0.0/schema.yaml are probed directly. Machine-readable
+    # spec files are emitted FIRST (they are the high-value artifact), then human
+    # UI pages — order matters because active-probe stops on a host after its first
+    # confirmed hit, so a probed spec is preferred over a UI page on the same host.
     # graphql/graphiql paths are intentionally excluded — the dedicated
-    # graphql_probe module already covers those.
-    # Order matters: active-probe stops on a host after its first confirmed hit,
-    # so a probed spec is preferred over a UI page on the same host.
-    API_DOCS_PATHS=(
-        # --- machine-readable spec files (highest value) ---
-        "/openapi.json" "/openapi.yaml" "/swagger.json" "/swagger.yaml"
-        "/v2/api-docs" "/v3/api-docs" "/api-docs"
+    # graphql_probe module already covers those. The long tail of arbitrary version
+    # strings is caught by the harvest phase (see api_regex in module_run) rather
+    # than brute-forced here.
+    local api_bases=( "" "/api" )
+    local api_versions=( "" "/v1" "/v2" "/v3" "/v1.0" "/1.0" "/1.0.0" )
+    local api_spec_files=(
+        "openapi.json" "openapi.yaml" "swagger.json" "swagger.yaml"
+        "schema.json" "schema.yaml" "api-docs"
+    )
+    local api_ui_files=(
+        "swagger" "swagger-ui.html" "swagger/index.html"
+        "redoc" "docs" "api/documentation"
+    )
+
+    API_DOCS_PATHS=()
+    local _b _v _f
+    # Spec files first (highest value)
+    for _b in "${api_bases[@]}"; do
+        for _v in "${api_versions[@]}"; do
+            for _f in "${api_spec_files[@]}"; do
+                API_DOCS_PATHS+=( "${_b}${_v}/${_f}" )
+            done
+        done
+    done
+    # Then UI pages
+    for _b in "${api_bases[@]}"; do
+        for _v in "${api_versions[@]}"; do
+            for _f in "${api_ui_files[@]}"; do
+                API_DOCS_PATHS+=( "${_b}${_v}/${_f}" )
+            done
+        done
+    done
+    # Fixed extras that don't fit the matrix
+    API_DOCS_PATHS+=(
         "/swagger/swagger.json" "/swagger/v1/swagger.json"
         "/swagger/v2/swagger.json" "/swagger/v3/swagger.json"
         "/docs/openapi.json" "/docs/openapi.yaml"
-        "/api/openapi.json" "/api/openapi.yaml"
-        "/api/swagger.json" "/api/swagger.yaml"
-        "/api/api-docs" "/api/v2/api-docs" "/api/v3/api-docs"
         "/api/docs/openapi.json" "/api/docs/openapi.yaml"
-        "/v1/openapi.json" "/v1/openapi.yaml" "/v1/swagger.json" "/v1/swagger.yaml"
-        "/v1/api-docs" "/v1/docs/openapi.json" "/v1/docs/openapi.yaml"
-        "/v2/openapi.json" "/v2/openapi.yaml" "/v2/swagger.json" "/v2/swagger.yaml"
-        "/v2/docs/openapi.json" "/v2/docs/openapi.yaml"
-        "/v3/openapi.json" "/v3/openapi.yaml" "/v3/swagger.json" "/v3/swagger.yaml"
-        "/v3/docs/openapi.json" "/v3/docs/openapi.yaml"
-        "/api/v1/openapi.json" "/api/v1/openapi.yaml"
-        "/api/v1/swagger.json" "/api/v1/swagger.yaml" "/api/v1/api-docs"
-        "/api/v2/openapi.json" "/api/v2/openapi.yaml"
-        "/api/v2/swagger.json" "/api/v2/swagger.yaml"
-        "/api/v3/openapi.json" "/api/v3/openapi.yaml"
-        "/api/v3/swagger.json" "/api/v3/swagger.yaml"
-        "/postman.json" "/api/postman.json"
-        # --- human UI pages ---
-        "/swagger" "/swagger-ui" "/swagger-ui.html"
-        "/swagger/index.html" "/swagger-ui/index.html"
-        "/redoc" "/redoc.html" "/docs" "/api/documentation" "/api/docs"
-        "/api/swagger" "/api/swagger-ui" "/api/swagger-ui.html"
-        "/api/swagger/index.html" "/api/swagger-ui/index.html"
-        "/api/redoc" "/api/redoc.html"
-        "/v1/swagger" "/v1/swagger-ui.html" "/v1/swagger-ui/index.html"
-        "/v1/redoc" "/v1/docs" "/v1/api/documentation"
-        "/v2/swagger" "/v2/swagger-ui.html" "/v2/swagger-ui/index.html"
-        "/v2/redoc" "/v2/docs" "/v2/api/documentation"
-        "/v3/swagger" "/v3/swagger-ui.html" "/v3/swagger-ui/index.html"
-        "/v3/redoc" "/v3/docs" "/v3/api/documentation"
-        "/api/v1/swagger-ui.html" "/api/v1/swagger" "/api/v1/redoc" "/api/v1/docs"
-        "/api/v2/swagger-ui.html" "/api/v2/swagger" "/api/v2/redoc" "/api/v2/docs"
-        "/api/v3/swagger-ui.html" "/api/v3/swagger" "/api/v3/redoc" "/api/v3/docs"
+        "/redoc.html" "/postman.json" "/api/postman.json"
     )
 
     # curl proxy flag (curl is always present; honor HTTP_PROXY_URL)
@@ -126,7 +125,7 @@ module_run() {
     # --- Discovery A: HARVEST indicators from URL-source files ---
     # Tight regex: only specific doc markers (bare /docs is too noisy to harvest,
     # active probing covers it anyway).
-    local api_regex='swagger|openapi|api-docs|apidocs|redoc|/v[0-9]+/api-docs|postman\.json'
+    local api_regex='swagger|openapi|api-docs|apidocs|redoc|postman\.json|schema\.(json|ya?ml)'
     local harvested=0
     for src in "${URL_SOURCES[@]}"; do
         [[ -f "$src" ]] || continue

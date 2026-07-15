@@ -76,12 +76,24 @@ normalize_endpoint() {
 }
 
 # Decide whether a response body looks like a GraphQL reply to {__typename}.
-# Real endpoints echo the __typename value or return a GraphQL data/errors
-# envelope; HTML IDE pages and 404s do not.
+# A bare `"data"`/`"errors"` substring is NOT enough: soft-404 JSON APIs (that
+# answer any path with 200 + {"errors":["not found"]}) would false-positive, and
+# the per-host short-circuit would then lock in a bogus endpoint. Require real
+# GraphQL evidence instead:
+#   1. the server echoed __typename back (a resolved {__typename} query), or
+#   2. an `errors` array carrying GraphQL-specific markers (locations/extensions
+#      or GraphQL parser/validation error text) — never a generic REST error.
 is_graphql_response() {
     local body="$1"
     [[ -n "$body" ]] || return 1
-    [[ "$body" == *"__typename"* || "$body" == *'"data"'* || "$body" == *'"errors"'* ]]
+    # 1) __typename echoed => the query actually resolved against a GraphQL schema
+    [[ "$body" == *'"__typename"'* ]] && return 0
+    [[ "$body" == *'__typename'* && "$body" == *'"data"'* ]] && return 0
+    # 2) GraphQL-shaped error envelope (distinguish from a generic REST error)
+    if [[ "$body" == *'"errors"'* ]]; then
+        printf '%s' "$body" | grep -qiE '"locations"|"extensions"|Cannot query field|Syntax Error|must provide (a )?query|GraphQL|Unknown argument|Unexpected (token|Name)|did you mean' && return 0
+    fi
+    return 1
 }
 
 # Turn an endpoint URL into a filesystem-safe slug (host + path)
@@ -120,7 +132,7 @@ module_run() {
     log_info "Harvested $harvested GraphQL indicator(s) from URL sources"
 
     # --- Discovery B: ACTIVE PROBE common paths on each live subdomain ---
-    # live_subdomains.txt holds bare hostnames (e.g. admin-graph.example.com),
+    # live_subdomains.txt holds bare hostnames (e.g. api.example.com),
     # but crawl/waymore entries are full URLs. Accept both: prepend https:// to
     # scheme-less hosts so each host is probed at every common GraphQL path.
     if check_file "$LIVE_SUBS"; then
