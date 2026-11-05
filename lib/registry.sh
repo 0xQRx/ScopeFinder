@@ -8,6 +8,7 @@ declare -a MODULES_ORDER=(
     "dockerhub_dorks"      # Generates Docker Hub dorks
     "postman_dorks"        # Generates Postman dorks
     "shodan_search"        # Shodan IP search (with org selection)
+    "resolver_refresh"     # Fetch + validate fresh DNS resolvers before enumeration
     "subdomain_enum"       # Subdomain enumeration (multiple sources)
     "subdomain_takeover"   # Subdomain takeover checks with nuclei (takeover tag)
     "ip_discovery"         # IP discovery from open sources

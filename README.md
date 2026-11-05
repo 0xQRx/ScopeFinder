@@ -127,6 +127,30 @@ Reload your shell configuration:
 source ~/.bashrc  # or source ~/.zshrc
 ```
 
+### DNS Resolvers
+
+Before subdomain enumeration, the `resolver_refresh` module fetches a current
+public resolver list, validates each resolver with `dig` (it must resolve a
+neutral anchor host and must *not* answer a random non-existent name, which
+weeds out dead and lying/wildcarding resolvers), and writes a validated
+`<domain>/resolvers/resolvers.txt` that `subdomain_enum` passes to subfinder via
+`-rlist`. This keeps stale resolver lists from silently degrading DNS
+resolution. It degrades gracefully: a failed refresh warns and falls back to a
+cache or the tools' built-in defaults rather than failing the run.
+
+Tunable via environment variables (all optional):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `RESOLVERS_URL` | trickest trusted list | Public resolver list to fetch |
+| `RESOLVERS_FILE` | – | Use a local list verbatim (skips fetching) |
+| `RESOLVERS_CACHE_DIR` | – | Persist/reuse a validated list across runs (age-checked) |
+| `RESOLVERS_MAX_AGE_HOURS` | `168` | Staleness threshold for cache/fallback |
+| `RESOLVERS_VALIDATE` | `true` | Set `false` to skip `dig` validation |
+| `RESOLVERS_VALIDATE_LIMIT` | `200` | Max resolvers to validate |
+| `RESOLVERS_ANCHOR` | `www.google.com` | Neutral host used to test resolvers |
+| `SCOPEFINDER_SKIP_RESOLVER_REFRESH` | – | Set to skip the module entirely |
+
 ## 📖 Usage
 
 ### Basic Commands
@@ -207,7 +231,6 @@ reuses the existing summary; regenerate it with `--fresh`, `--replay-from`, or
 
 Planned work, roughly in priority order. Contributions toward any of these are welcome.
 
-- **Resolver freshness** — public resolver lists rot. Add a runtime refresh (re-fetch + validate resolvers) or at least a staleness/age warning so stale baked-in resolvers don't silently degrade DNS resolution.
 - **Error visibility** — the pervasive `|| true` / `2>/dev/null` pattern can mask real failures (a tool crashes, leaves an empty output file, and the module still checkpoints as "completed"). Surface meaningful errors, and fix `build.sh` exiting `0` on a failed Docker build.
 - **Non-interactive `shodan_search`** — the Shodan org-selection prompt blocks unattended runs. Make it auto-select or skip on a timeout, with an env override (e.g. `SHODAN_ORG=`).
 - **`--app` flag (app-layer-only mode)** — a mode that runs only app-layer-applicable modules and skips port/ASN/infra enumeration, for engagements scoped to the application layer.

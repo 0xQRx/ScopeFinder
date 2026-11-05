@@ -16,9 +16,17 @@ module_init() {
 module_run() {
     log_info "Enumerating subdomains for: $DOMAIN"
 
-    # Run subfinder
+    # Run subfinder. Prefer the freshly validated resolver list from the
+    # resolver_refresh module when present - a current, healthy resolver set
+    # keeps subfinder's active resolution from degrading on stale resolvers.
     log_info "Running subfinder..."
-    subfinder -d "$DOMAIN" -all -recursive -silent >> "$SUBDOMAINS_FILE" 2>/dev/null || true
+    local resolvers_file="${DIRS[RESOLVERS]}/${FILES[RESOLVERS]}"
+    local resolver_flag=()
+    if check_file "$resolvers_file"; then
+        resolver_flag=(-rlist "$resolvers_file")
+        log_info "Using $(grep -c . "$resolvers_file") validated resolvers (-rlist)"
+    fi
+    subfinder -d "$DOMAIN" -all -recursive -silent "${resolver_flag[@]}" >> "$SUBDOMAINS_FILE" 2>/dev/null || true
 
     # Run godigger
     log_info "Running godigger..."
