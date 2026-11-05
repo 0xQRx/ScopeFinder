@@ -172,12 +172,41 @@ sf-run subfinder -d example.com
 sf-run trufflehog filesystem /output/example.com
 ```
 
+## 📂 Run Output
+
+Each run writes its results under `<domain>/` as per-module text files, plus two
+machine-readable artifacts produced by the final `run_summary` module:
+
+- **`<domain>/summary.json`** — a structured snapshot of the discovered surface
+  (subdomains, live hosts, open ports, URL/parameter counts, and findings such
+  as subdomain takeovers, GraphQL/API-docs endpoints, WordPress sites, secrets,
+  and credentials), plus per-module completion status. Consume this from
+  external tooling/pipelines instead of parsing individual text files. A
+  timestamped copy is kept under `<domain>/summaries/`, and `summary.json`
+  always points at the newest run.
+
+  ```bash
+  # e.g. list newly discovered live hosts programmatically
+  jq -r '.surface.live_subdomains.items[]' example.com/summary.json
+  ```
+
+- **`<domain>/diff.json`** — when a previous summary exists, the run flags the
+  *new* surface (new subdomains, newly live hosts, newly open ports) relative to
+  the previous baseline, along with removed entries and counts. High value for
+  the baseline-before-engagement workflow.
+
+  ```bash
+  jq '.counts' example.com/diff.json
+  ```
+
+Because `run_summary` is checkpointed like any other module, a plain re-run
+reuses the existing summary; regenerate it with `--fresh`, `--replay-from`, or
+`--replay run_summary`.
+
 ## 🗺️ Roadmap
 
 Planned work, roughly in priority order. Contributions toward any of these are welcome.
 
-- **Structured run summary (`summary.json`)** — emit a machine-readable summary of the discovered surface (subdomains, live hosts, ports, findings) so runs can be consumed by external tooling and pipelines instead of parsing per-module text files.
-- **Run-over-run diffing** — compare a run against the previous baseline and flag *new* surface (new subdomains, newly live hosts, newly open ports) since last time. High value given the baseline-before-engagement workflow.
 - **Resolver freshness** — public resolver lists rot. Add a runtime refresh (re-fetch + validate resolvers) or at least a staleness/age warning so stale baked-in resolvers don't silently degrade DNS resolution.
 - **Error visibility** — the pervasive `|| true` / `2>/dev/null` pattern can mask real failures (a tool crashes, leaves an empty output file, and the module still checkpoints as "completed"). Surface meaningful errors, and fix `build.sh` exiting `0` on a failed Docker build.
 - **Non-interactive `shodan_search`** — the Shodan org-selection prompt blocks unattended runs. Make it auto-select or skip on a timeout, with an env override (e.g. `SHODAN_ORG=`).

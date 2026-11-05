@@ -33,6 +33,9 @@ declare -a MODULES_ORDER=(
     "asn_discovery"        # ASN range discovery
     "asn_port_scan"           # Port scanning on ASN ranges
     "asn_recon"            # SSL certificate analysis with CloudRecon
+    # Runs last: reads every module's output into a machine-readable
+    # summary.json and diffs the discovered surface against the previous run.
+    "run_summary"          # Structured run summary + run-over-run diffing
 )
 
 # Module metadata

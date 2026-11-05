@@ -43,6 +43,7 @@ init_dirs() {
     DIRS[API_DOCS]="${domain}/api_docs"
     DIRS[API_DOCS_SPECS]="${domain}/api_docs/specs"
     DIRS[SUBDOMAIN_TAKEOVER]="${domain}/subdomain_takeover"
+    DIRS[SUMMARIES]="${domain}/summaries"
 
     # Downloaded/raw data directories (in urls/artifacts to match original)
     DIRS[DOWNLOADED_DATA]="${domain}/urls/artifacts/downloaded_data"
@@ -116,6 +117,8 @@ declare -A FILES=(
     [GRAPHQL_ENDPOINTS]="graphql_endpoints.txt"
     [API_DOCS_ENDPOINTS]="api_docs_endpoints.txt"
     [TAKEOVER_RESULTS]="takeover_results.txt"
+    [RUN_SUMMARY]="summary.json"
+    [RUN_DIFF]="diff.json"
 )
 
 # Tool-specific proxy configurations
