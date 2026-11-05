@@ -90,8 +90,8 @@ list_all_modules() {
 show_module_status() {
     echo "Module completion status for domain: $DOMAIN"
     echo ""
-    printf "%-20s %-15s %-20s\n" "Module" "Status" "Completed At"
-    printf "%-20s %-15s %-20s\n" "------" "------" "------------"
+    printf "%-20s %-22s %-20s\n" "Module" "Status" "Completed At"
+    printf "%-20s %-22s %-20s\n" "------" "------" "------------"
 
     for module in "${MODULES_ORDER[@]}"; do
         local status="❌ Not started"
@@ -109,7 +109,18 @@ show_module_status() {
             status="⏳ In progress"
         fi
 
-        printf "%-20s %-15s %-20s\n" "$module" "$status" "$completed_at"
+        # Surface recorded warnings/errors for this module so a "completed"
+        # module that quietly logged problems isn't mistaken for a clean run.
+        # Only annotate modules that actually ran (a never-started module should
+        # have no record anyway).
+        local warn_rec="${DIRS[CHECKPOINTS_DIR]}/${module}.warnings"
+        if [[ -s "$warn_rec" && "$status" != "❌ Not started" ]]; then
+            local warn_n
+            warn_n=$(grep -c . "$warn_rec" 2>/dev/null || echo 0)
+            status="${status} (⚠ ${warn_n})"
+        fi
+
+        printf "%-20s %-22s %-20s\n" "$module" "$status" "$completed_at"
     done
 }
 

@@ -34,14 +34,18 @@ _summary_count() {
 # array is a stable set, which keeps diffs meaningful.
 _summary_json_array() {
     local file="$1"
-    if [[ ! -f "$file" ]]; then
+    # Treat missing AND empty files the same: an existing-but-empty file must
+    # not fall through to the pipeline below, where a no-match grep returns 1
+    # and (under 'set -o pipefail') would both trip the fallback and emit jq's
+    # own [], yielding invalid "[]\n[]".
+    if [[ ! -s "$file" ]]; then
         echo "[]"
         return
     fi
-    # strip surrounding whitespace, drop blanks, unique-sort, then let jq do
-    # the JSON string escaping via raw-input slurp.
-    sed 's/[[:space:]]*$//; s/^[[:space:]]*//' "$file" \
-        | grep -v '^$' \
+    # strip surrounding whitespace, drop blank lines (sed, not grep, so an
+    # all-blank file still exits 0), unique-sort, then let jq do the JSON
+    # string escaping via raw-input slurp.
+    sed 's/[[:space:]]*$//; s/^[[:space:]]*//; /^$/d' "$file" \
         | sort -u \
         | jq -R . | jq -s . 2>/dev/null || echo "[]"
 }
@@ -146,11 +150,13 @@ module_run() {
 
     # --- Module status map from checkpoints ----------------------------------
     local modules_json="{}"
-    local m cp_done cp_skip cp_start st at
+    local warnings_total=0
+    local m cp_done cp_skip cp_start cp_warn st at warn_n
     for m in "${MODULES_ORDER[@]}"; do
         cp_done="${DIRS[CHECKPOINTS_DIR]}/${m}.done"
         cp_skip="${DIRS[CHECKPOINTS_DIR]}/${m}.skipped"
         cp_start="${DIRS[CHECKPOINTS_DIR]}/${m}.start"
+        cp_warn="${DIRS[CHECKPOINTS_DIR]}/${m}.warnings"
         st="not_started"; at="null"
         if [[ -f "$cp_done" ]]; then
             st="complete"; at="$(cat "$cp_done" 2>/dev/null || echo null)"
@@ -160,8 +166,11 @@ module_run() {
             st="in_progress"; at="null"
         fi
         [[ "$at" =~ ^[0-9]+$ ]] || at="null"
-        modules_json="$(jq --arg name "$m" --arg st "$st" --argjson at "$at" \
-            '. + {($name): {status: $st, at: $at}}' <<< "$modules_json")"
+        warn_n=0
+        [[ -s "$cp_warn" ]] && warn_n="$(grep -c . "$cp_warn" 2>/dev/null || echo 0)"
+        warnings_total=$(( warnings_total + warn_n ))
+        modules_json="$(jq --arg name "$m" --arg st "$st" --argjson at "$at" --argjson warn "$warn_n" \
+            '. + {($name): {status: $st, at: $at, warnings: $warn}}' <<< "$modules_json")"
     done
 
     # --- Assemble summary.json ----------------------------------------------
@@ -174,6 +183,7 @@ module_run() {
         --arg generated_at "$now_iso" \
         --argjson generated_at_epoch "$now_epoch" \
         --argjson modules "$modules_json" \
+        --argjson warnings_total "$warnings_total" \
         --argjson subdomains "$subdomains_json" \
         --argjson live "$live_json" \
         --argjson http200 "$http200_json" \
@@ -208,6 +218,7 @@ module_run() {
             domain: $domain,
             generated_at: $generated_at,
             generated_at_epoch: $generated_at_epoch,
+            warnings_total: $warnings_total,
             modules: $modules,
             surface: {
                 subdomains:          { count: ($subdomains | length), items: $subdomains },

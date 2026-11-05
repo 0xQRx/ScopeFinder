@@ -227,11 +227,25 @@ Because `run_summary` is checkpointed like any other module, a plain re-run
 reuses the existing summary; regenerate it with `--fresh`, `--replay-from`, or
 `--replay run_summary`.
 
+### Error Visibility
+
+Modules lean on `|| true` / `2>/dev/null` so one tool failing never aborts the
+whole run — but that can also hide a tool that crashed and left empty output
+while the module still checkpoints as "completed". To keep failures visible,
+every warning and error a module logs is recorded against that module. These
+surface in three places:
+
+- a `⚠ Module completed with N warning(s)/error(s)` line at the end of the module,
+- an aggregate `⚠ Run completed with N warning(s)...` line at the end of the run,
+- `--status`, which marks affected modules `✅ Complete (⚠ N)`,
+
+and the per-module counts plus a `warnings_total` are included in `summary.json`.
+Full details for each module are kept in `<domain>/.checkpoints/<module>.warnings`.
+
 ## 🗺️ Roadmap
 
 Planned work, roughly in priority order. Contributions toward any of these are welcome.
 
-- **Error visibility** — the pervasive `|| true` / `2>/dev/null` pattern can mask real failures (a tool crashes, leaves an empty output file, and the module still checkpoints as "completed"). Surface meaningful errors, and fix `build.sh` exiting `0` on a failed Docker build.
 - **Non-interactive `shodan_search`** — the Shodan org-selection prompt blocks unattended runs. Make it auto-select or skip on a timeout, with an env override (e.g. `SHODAN_ORG=`).
 - **`--app` flag (app-layer-only mode)** — a mode that runs only app-layer-applicable modules and skips port/ASN/infra enumeration, for engagements scoped to the application layer.
 - **Wider passive breadth** — wire in more passive subdomain sources as API keys become available (Censys, FOFA, Netlas, BinaryEdge, GitHub token, etc.).

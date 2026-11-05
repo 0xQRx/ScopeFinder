@@ -251,6 +251,17 @@ main() {
     done
 
     if [[ "$DRY_RUN" == "false" ]]; then
+        # Aggregate any warnings/errors recorded by modules during this run so
+        # problems that were previously swallowed by "|| true / 2>/dev/null"
+        # are visible at a glance instead of buried in per-module output.
+        local total_warn mods_with
+        total_warn=$(cat "${DIRS[CHECKPOINTS_DIR]}"/*.warnings 2>/dev/null | grep -c . || echo 0)
+        mods_with=$(find "${DIRS[CHECKPOINTS_DIR]}" -name '*.warnings' -size +0c 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "${total_warn:-0}" -gt 0 ]]; then
+            echo -e "${YELLOW}⚠ Run completed with ${total_warn} warning(s)/error(s) across ${mods_with} module(s).${NC}"
+            echo -e "${DIM}  Review with: ScopeFinder ${DOMAIN} --status   (details in ${DIRS[CHECKPOINTS_DIR]}/*.warnings)${NC}"
+        fi
+
         log_info "ScopeFinder completed successfully!"
         log_info "Results available at: ${DIRS[WORK_DIR]}"
     fi

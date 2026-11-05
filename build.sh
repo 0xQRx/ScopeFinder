@@ -1,7 +1,9 @@
 #!/bin/bash
 # Build script for ScopeFinder 2.0 Docker image
 
-set -e
+# pipefail ensures a failure anywhere in a pipeline (not just the last command)
+# propagates, so a failed `docker build` can never be masked into a 0 exit.
+set -eo pipefail
 
 # Colors for output
 RED='\033[0;31m'

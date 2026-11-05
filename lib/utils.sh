@@ -17,12 +17,34 @@ log_info() {
     echo -e "${DIM}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} ${CYAN}[INFO]${NC} $*"
 }
 
+# Name of the module currently executing, set by the MODULE wrapper so that
+# warnings and errors can be attributed to the module that produced them.
+CURRENT_MODULE=""
+
+# Record a warning/error against the current module (best-effort, never fails
+# the caller even under 'set -e'). Each module's issues accumulate in a
+# <module>.warnings file inside the checkpoints dir, which --status, the
+# end-of-run aggregate, and summary.json all read. This is what turns the
+# pervasive "|| true / 2>/dev/null" swallowing into something visible: a tool
+# that warns (or a module that notices empty output) leaves a durable trace
+# instead of silently checkpointing as a clean "completed".
+_record_issue() {
+    local level="$1"; shift
+    local dir="${DIRS[CHECKPOINTS_DIR]:-}"
+    [[ -n "$dir" && -d "$dir" ]] || return 0
+    printf '[%s] [%s] %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$level" "$*" \
+        >> "${dir}/${CURRENT_MODULE:-_main}.warnings" 2>/dev/null || true
+    return 0
+}
+
 log_error() {
     echo -e "${DIM}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} ${RED}[ERROR]${NC} $*" >&2
+    _record_issue ERROR "$*"
 }
 
 log_warn() {
     echo -e "${DIM}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} ${YELLOW}[WARN]${NC} $*"
+    _record_issue WARN "$*"
 }
 
 log_debug() {
@@ -98,6 +120,20 @@ check_file() {
     [[ -f "$file" && -s "$file" ]]
 }
 
+# Assert that a step produced output. If the expected file is missing or empty,
+# emit a recorded warning (so it surfaces at run end) and return non-zero so the
+# caller can branch. Use this after a tool that is expected to produce results
+# to catch silent crashes that would otherwise checkpoint as a clean completion.
+check_output() {
+    local file=$1
+    local label="${2:-$(basename "$file")}"
+    if [[ ! -s "$file" ]]; then
+        log_warn "${label}: produced no output (missing or empty: ${file})"
+        return 1
+    fi
+    return 0
+}
+
 dedupe_file() {
     local file=$1
     if [[ -f "$file" ]]; then
@@ -128,6 +164,11 @@ MODULE() {
     fi
     echo -e "${CYAN}=========================================${NC}"
 
+    # Attribute any warnings/errors emitted below to this module, and clear any
+    # stale record from a previous run so the count reflects only this run.
+    CURRENT_MODULE="$module_name"
+    rm -f "${DIRS[CHECKPOINTS_DIR]}/${module_name}.warnings"
+
     # Export environment for module
     export_env
 
@@ -149,7 +190,16 @@ MODULE() {
     # Run the module
     if module_run; then
         checkpoint_complete "$module_name"
-        echo -e "${GREEN}✓ Module completed: ${module_name}${NC}"
+        local warn_rec="${DIRS[CHECKPOINTS_DIR]}/${module_name}.warnings"
+        if [[ -s "$warn_rec" ]]; then
+            local warn_n
+            warn_n=$(grep -c . "$warn_rec" 2>/dev/null || echo 0)
+            echo -e "${YELLOW}⚠ Module completed with ${warn_n} warning(s)/error(s): ${module_name}${NC}"
+            echo -e "${DIM}  (details: ${warn_rec})${NC}"
+        else
+            echo -e "${GREEN}✓ Module completed: ${module_name}${NC}"
+        fi
+        CURRENT_MODULE=""
         echo ""
         return 0
     else

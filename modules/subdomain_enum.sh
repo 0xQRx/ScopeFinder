@@ -78,6 +78,11 @@ module_run() {
 
     log_info "Found $sub_count subdomains and $wild_count wildcard entries"
 
+    # Everything downstream keys off this file. If enumeration produced nothing,
+    # surface it as a recorded warning rather than silently checkpointing clean
+    # and letting every later module quietly no-op on empty input.
+    check_output "$SUBDOMAINS_FILE" "subdomain enumeration" || true
+
     return 0
 }
 

@@ -264,30 +264,24 @@ ENV PATH="/usr/local/go/bin:/root/go/bin:/root/.cargo/bin:/root/.local/bin:$PATH
 # ============================================
 # Verify all tools are installed
 # ============================================
+# Presence-check every tool with `command -v`. The previous version piped some
+# checks through `head`/`2>/dev/null` without `pipefail`, so the pipeline's exit
+# status was `head`'s (always 0) - a missing or broken tool passed verification
+# and the image built "successfully" with tools absent. A simple presence loop
+# fails the build on the first missing binary.
 RUN set -ex && \
     echo "=== Verifying tool installation ===" && \
-    subfinder -version 2>/dev/null | head -1 && \
-    httpx -version 2>/dev/null | head -1 && \
-    katana -version 2>/dev/null | head -1 && \
-    asnmap -version 2>/dev/null | head -1 && \
-    sourcemapper -version 2>/dev/null | head -1 && \
-    nuclei -version 2>/dev/null | head -1 && \
-    smap -h 2>&1 | head -1 && \
-    which crtsh-tool && \
-    which jshunter && \
-    which godigger && \
-    which urldedup && \
-    which waymore && \
-    which linkfinder && \
-    which xnLinkFinder && \
-    which msftrecon && \
-    which uro && \
-    which shosubgo && \
-    which CloudRecon && \
-    which jsluice && \
-    wpscan --version | head -1 && \
-    x8 --version && \
-    trufflehog --version && \
+    for tool in \
+        subfinder httpx katana asnmap sourcemapper nuclei smap \
+        crtsh-tool jshunter godigger urldedup \
+        waymore linkfinder xnLinkFinder msftrecon uro \
+        shosubgo CloudRecon jsluice wpscan x8 trufflehog; do \
+        if ! command -v "$tool" >/dev/null 2>&1; then \
+            echo "ERROR: required tool not installed: $tool" >&2; \
+            exit 1; \
+        fi; \
+        echo "ok: $tool -> $(command -v "$tool")"; \
+    done && \
     echo "=== All tools verified successfully ==="
 
 # ============================================
