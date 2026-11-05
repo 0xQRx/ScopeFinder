@@ -198,6 +198,9 @@ ScopeFinder example.com --replay wordpress_scan,secret_scan
 # Reset all checkpoints
 ScopeFinder example.com --fresh
 
+# Application-layer-only scan of a single host
+ScopeFinder www.example.com --app
+
 # Dry run (show what would be executed)
 ScopeFinder example.com --dry-run
 
@@ -215,6 +218,38 @@ sf-run bash
 sf-run subfinder -d example.com
 sf-run trufflehog filesystem /output/example.com
 ```
+
+### Application-Layer-Only Mode (`--app`)
+
+For engagements scoped to a single application rather than a whole domain's
+infrastructure, `--app` runs only the application-layer modules and skips all
+network/DNS discovery and infrastructure enumeration:
+
+```bash
+ScopeFinder www.example.com --app
+```
+
+In this mode **the supplied host is the target** — there is no subdomain
+enumeration, so the app modules are seeded directly from the host you pass.
+
+**Runs (application layer):** web crawling (`katana`), URL/JS extraction
+(`xnLinkFinder`, inline scripts, `js_download`, `linkfinder`), parameter
+extraction, URL probing (`httpx`), secret scanning, GraphQL and API-docs
+discovery, WordPress scanning, the dork generators (Google/GitHub/Docker
+Hub/Postman), and the `run_summary` artifact.
+
+**Skipped (network / infrastructure):** `subdomain_enum`, `resolver_refresh`,
+`subdomain_takeover`, `httpx_subdomain_probe`, `shodan_search`, `ip_discovery`,
+`smap_port_scan`, `cloud_recon`, `asn_discovery`, `asn_port_scan`, `asn_recon`,
+and `credential_intel` (OSINT).
+
+Notes:
+- The target host is seeded into the live-host list (and as a WordPress-scan URL,
+  so WPScan evaluates it — it self-detects and exits cleanly on non-WordPress
+  targets). Seeding is append-if-missing, so `--app` layered on top of a prior
+  full scan reuses that run's discovered hosts rather than overwriting them.
+- `--app` composes with the other flags; combine with `--fresh` to re-run the
+  app modules from scratch against the seeded target.
 
 ## 📂 Run Output
 
@@ -266,7 +301,6 @@ Full details for each module are kept in `<domain>/.checkpoints/<module>.warning
 
 Planned work, roughly in priority order. Contributions toward any of these are welcome.
 
-- **`--app` flag (app-layer-only mode)** — a mode that runs only app-layer-applicable modules and skips port/ASN/infra enumeration, for engagements scoped to the application layer.
 - **Wider passive breadth** — wire in more passive subdomain sources as API keys become available (Censys, FOFA, Netlas, BinaryEdge, GitHub token, etc.).
 
 ## 🤝 Contributing

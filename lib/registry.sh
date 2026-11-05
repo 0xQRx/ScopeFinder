@@ -39,6 +39,45 @@ declare -a MODULES_ORDER=(
     "run_summary"          # Structured run summary + run-over-run diffing
 )
 
+# Modules excluded from --app (application-layer-only) mode.
+# --app is for engagements scoped to a single application: the supplied host IS
+# the target (see app-target seeding in ScopeFinder.sh), so network/DNS
+# discovery, infrastructure/port/ASN enumeration, and non-application OSINT are
+# all skipped. Everything NOT listed here (the web-crawl/JS/URL/GraphQL/API-docs
+# /WordPress chain, the dork generators, and run_summary) still runs.
+declare -a APP_EXCLUDE_MODULES=(
+    "shodan_search"          # IP/port/cert discovery (infra)
+    "resolver_refresh"       # DNS resolver plumbing (network)
+    "subdomain_enum"         # subdomain discovery (network/DNS)
+    "subdomain_takeover"     # dangling-DNS finding (network/DNS)
+    "ip_discovery"           # IP discovery (infra)
+    "credential_intel"       # email/leaked-cred OSINT (not app testing)
+    "smap_port_scan"         # port scanning subdomains (network)
+    "httpx_subdomain_probe"  # host liveness probing (network)
+    "cloud_recon"            # cloud infrastructure recon (infra)
+    "asn_discovery"          # ASN range discovery (infra)
+    "asn_port_scan"          # port scanning ASN ranges (infra)
+    "asn_recon"              # SSL/cert analysis across IP ranges (infra)
+)
+
+# Remove the infrastructure/network modules from an ordered module array in
+# place, leaving only the application-layer modules (used for --app mode).
+filter_app_modules() {
+    local -n _modules_ref=$1
+    local kept=() m excluded x
+    for m in "${_modules_ref[@]}"; do
+        excluded=false
+        for x in "${APP_EXCLUDE_MODULES[@]}"; do
+            if [[ "$m" == "$x" ]]; then
+                excluded=true
+                break
+            fi
+        done
+        [[ "$excluded" == "false" ]] && kept+=("$m")
+    done
+    _modules_ref=("${kept[@]}")
+}
+
 # Module metadata
 declare -A MODULE_DESC
 declare -A MODULE_LOADED

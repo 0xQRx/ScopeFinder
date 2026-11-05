@@ -21,6 +21,7 @@ DRY_RUN=false
 REPLAY_MODULES=""
 FROM_MODULE=""
 FRESH_RUN=false
+APP_MODE=false
 
 # Help function
 usage() {
@@ -35,6 +36,11 @@ Options:
     --replay module1,module2  Force re-run specific modules (requires prior run)
     --replay-from module      Start execution from specified module onwards
     --fresh                  Clear all checkpoints and run everything from scratch
+    --app                    Application-layer-only mode: run just the app-layer
+                             modules (web crawl, JS/URL extraction, GraphQL/API
+                             docs, WordPress, dork generators) and skip all
+                             network/DNS discovery and infrastructure/port/ASN
+                             enumeration. The supplied host IS the target.
     --proxy URL              HTTP proxy URL for httpx and katana tools only
                              (Use http:// not https://, and Docker host IP 172.17.0.1)
     --dry-run                Show what would be executed
@@ -42,6 +48,7 @@ Options:
 
 Example:
     ScopeFinder example.com
+    ScopeFinder www.example.com --app                        # app-layer only, this host
     ScopeFinder example.com --replay subdomain_enum,port_scan
     ScopeFinder example.com --proxy http://172.17.0.1:8080  # Docker host IP for Burp/ZAP
 
@@ -91,6 +98,10 @@ parse_args() {
             --fresh)
                 [[ -z "${DOMAIN:-}" ]] && { echo "Error: Domain required for --fresh"; exit 1; }
                 FRESH_RUN=true
+                shift
+                ;;
+            --app)
+                APP_MODE=true
                 shift
                 ;;
             --proxy)
@@ -184,6 +195,51 @@ init_workspace() {
     log_info "Workspace initialized at: ${DIRS[WORK_DIR]}"
 }
 
+# Seed the application target for --app mode.
+#
+# The app-layer modules (katana, graphql_probe, api_docs_probe, wordpress_scan,
+# and the URL/JS chain downstream of them) consume a live-host list that is
+# normally produced by subdomain enumeration + httpx probing - both of which are
+# network-layer and skipped in --app mode. In --app mode the supplied host IS the
+# application target, so seed those inputs directly from it.
+#
+# The target host is appended if missing (never clobbering a list left by a prior
+# full run), so --app works both standalone and layered on top of an earlier scan.
+seed_app_targets() {
+    # Derive a bare host even if a scheme/path slipped into the argument.
+    local host="${DOMAIN#http://}"
+    host="${host#https://}"
+    host="${host%%/*}"
+    [[ -n "$host" ]] || { log_warn "[--app] Could not derive a target host from '$DOMAIN'"; return 0; }
+
+    mkdir -p "${DIRS[SUBDOMAINS]}"
+    local subs="${DIRS[SUBDOMAINS]}/${FILES[SUBDOMAINS]}"
+    local live="${DIRS[SUBDOMAINS]}/${FILES[LIVE_SUBDOMAINS]}"
+
+    # live_subdomains.txt / subdomains.txt: bare hostnames (format the app
+    # modules expect). Append-if-missing so prior-run data is preserved.
+    local f
+    for f in "$live" "$subs"; do
+        if [[ ! -f "$f" ]] || ! grep -qxF "$host" "$f" 2>/dev/null; then
+            printf '%s\n' "$host" >> "$f"
+            sort -u "$f" -o "$f" 2>/dev/null || true
+        fi
+    done
+
+    # wordpress_scan reads a URL list and skips when it is absent; seed the
+    # target as a URL so WPScan evaluates it (it self-detects non-WordPress
+    # targets and exits without a finding).
+    mkdir -p "${DIRS[WORDPRESS]}"
+    local wp="${DIRS[WORDPRESS]}/${FILES[WORDPRESS_SITES]}"
+    local wp_url="https://${host}"
+    if [[ ! -f "$wp" ]] || ! grep -qxF "$wp_url" "$wp" 2>/dev/null; then
+        printf '%s\n' "$wp_url" >> "$wp"
+        sort -u "$wp" -o "$wp" 2>/dev/null || true
+    fi
+
+    log_info "[--app] Application target seeded: $host"
+}
+
 # Main execution
 main() {
     parse_args "$@"
@@ -222,6 +278,12 @@ main() {
     # Initialize workspace
     if [[ "$DRY_RUN" == "false" ]]; then
         init_workspace
+        # In --app mode the supplied host IS the application target; seed the
+        # live-host inputs the app modules expect (normally produced by the
+        # network-layer subdomain enum + httpx probe, which --app skips).
+        if [[ "$APP_MODE" == "true" ]]; then
+            seed_app_targets
+        fi
     fi
 
     # Load and execute modules
@@ -229,6 +291,13 @@ main() {
 
     local modules_to_run=()
     determine_modules_to_run modules_to_run
+
+    # Application-layer-only mode: drop the network/infra modules, keeping just
+    # the app-layer chain. Applies on top of normal/replay/from selection.
+    if [[ "$APP_MODE" == "true" ]]; then
+        filter_app_modules modules_to_run
+        log_info "[--app] Application-layer-only mode: network/infrastructure modules excluded"
+    fi
 
     if [[ ${#modules_to_run[@]} -eq 0 ]]; then
         log_info "No modules to run"
