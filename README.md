@@ -172,6 +172,18 @@ sf-run subfinder -d example.com
 sf-run trufflehog filesystem /output/example.com
 ```
 
+## 🗺️ Roadmap
+
+Planned work, roughly in priority order. Contributions toward any of these are welcome.
+
+- **Structured run summary (`summary.json`)** — emit a machine-readable summary of the discovered surface (subdomains, live hosts, ports, findings) so runs can be consumed by external tooling and pipelines instead of parsing per-module text files.
+- **Run-over-run diffing** — compare a run against the previous baseline and flag *new* surface (new subdomains, newly live hosts, newly open ports) since last time. High value given the baseline-before-engagement workflow.
+- **Resolver freshness** — public resolver lists rot. Add a runtime refresh (re-fetch + validate resolvers) or at least a staleness/age warning so stale baked-in resolvers don't silently degrade DNS resolution.
+- **Error visibility** — the pervasive `|| true` / `2>/dev/null` pattern can mask real failures (a tool crashes, leaves an empty output file, and the module still checkpoints as "completed"). Surface meaningful errors, and fix `build.sh` exiting `0` on a failed Docker build.
+- **Non-interactive `shodan_search`** — the Shodan org-selection prompt blocks unattended runs. Make it auto-select or skip on a timeout, with an env override (e.g. `SHODAN_ORG=`).
+- **`--app` flag (app-layer-only mode)** — a mode that runs only app-layer-applicable modules and skips port/ASN/infra enumeration, for engagements scoped to the application layer.
+- **Wider passive breadth** — wire in more passive subdomain sources as API keys become available (Censys, FOFA, Netlas, BinaryEdge, GitHub token, etc.).
+
 ## 🤝 Contributing
 
 Contributions are welcome! To add a new module:
