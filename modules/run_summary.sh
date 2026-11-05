@@ -24,9 +24,15 @@ module_init() {
 
 # Count non-empty lines in a file; 0 if the file is missing or empty.
 _summary_count() {
-    local file="$1"
+    local file="$1" n
     [[ -f "$file" ]] || { echo 0; return; }
-    grep -c . "$file" 2>/dev/null || echo 0
+    # `grep -c .` already prints the count (including "0") on its own, but it
+    # EXITS 1 when there is no match. A trailing `|| echo 0` would then ALSO
+    # fire and append a second line, yielding "0\n0" - which is invalid JSON
+    # when handed to `jq --argjson`. Swallow the non-zero exit with `|| true`
+    # (no extra output) and default to 0 only if grep printed nothing at all.
+    n="$(grep -c . "$file" 2>/dev/null || true)"
+    echo "${n:-0}"
 }
 
 # Emit a JSON array of the non-empty, trimmed lines of a file (compact, one
@@ -167,7 +173,7 @@ module_run() {
         fi
         [[ "$at" =~ ^[0-9]+$ ]] || at="null"
         warn_n=0
-        [[ -s "$cp_warn" ]] && warn_n="$(grep -c . "$cp_warn" 2>/dev/null || echo 0)"
+        [[ -s "$cp_warn" ]] && warn_n="$(_summary_count "$cp_warn")"
         warnings_total=$(( warnings_total + warn_n ))
         modules_json="$(jq --arg name "$m" --arg st "$st" --argjson at "$at" --argjson warn "$warn_n" \
             '. + {($name): {status: $st, at: $at, warnings: $warn}}' <<< "$modules_json")"
