@@ -151,6 +151,26 @@ Tunable via environment variables (all optional):
 | `RESOLVERS_ANCHOR` | `www.google.com` | Neutral host used to test resolvers |
 | `SCOPEFINDER_SKIP_RESOLVER_REFRESH` | – | Set to skip the module entirely |
 
+### Shodan Organization Search
+
+After the Shodan SSL-certificate search, `shodan_search` can run a second query
+for a discovered *organization* to widen IP coverage. Interactively it presents
+a numbered org menu, but the prompt no longer blocks an unattended run forever:
+it has a timeout and a configurable default, and it can be driven entirely by
+environment variables so a scheduled/CI run never hangs.
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `SHODAN_ORG` | – | `<name>`: scan that org directly (no prompt). `auto`: auto-pick the most common org from the cert matches. `skip`/`none`: skip the org scan |
+| `SHODAN_ORG_TIMEOUT` | `30` | Seconds to wait at the interactive org prompt before applying the default |
+| `SHODAN_ORG_ON_TIMEOUT` | `skip` | Action when the prompt times out, or when running non-interactively with no `SHODAN_ORG`: `skip` or `auto` |
+
+Precedence: an explicit `SHODAN_ORG` wins; otherwise an interactive terminal is
+prompted (with the timeout); a non-interactive run applies
+`SHODAN_ORG_ON_TIMEOUT` immediately. `auto` selects the *most frequently seen*
+org among the certificate matches (the likeliest true owner), not an
+alphabetical first.
+
 ## 📖 Usage
 
 ### Basic Commands
@@ -246,7 +266,6 @@ Full details for each module are kept in `<domain>/.checkpoints/<module>.warning
 
 Planned work, roughly in priority order. Contributions toward any of these are welcome.
 
-- **Non-interactive `shodan_search`** — the Shodan org-selection prompt blocks unattended runs. Make it auto-select or skip on a timeout, with an env override (e.g. `SHODAN_ORG=`).
 - **`--app` flag (app-layer-only mode)** — a mode that runs only app-layer-applicable modules and skips port/ASN/infra enumeration, for engagements scoped to the application layer.
 - **Wider passive breadth** — wire in more passive subdomain sources as API keys become available (Censys, FOFA, Netlas, BinaryEdge, GitHub token, etc.).
 
