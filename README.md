@@ -253,7 +253,7 @@ Notes:
 
 ## 📂 Run Output
 
-Each run writes its results under `<domain>/` as per-module text files, plus two
+Each run writes its results under `<domain>/` as per-module text files, plus three
 machine-readable artifacts produced by the final `run_summary` module:
 
 - **`<domain>/summary.json`** — a structured snapshot of the discovered surface
@@ -276,6 +276,22 @@ machine-readable artifacts produced by the final `run_summary` module:
 
   ```bash
   jq '.counts' example.com/diff.json
+  ```
+
+- **`<domain>/export.json`** — a manifest of every raw result file the run
+  produced, so tooling can ingest the *full* data rather than the counts in
+  `summary.json`. Each entry under `artifacts` gives the file's `path`
+  (relative to the `<domain>/` work dir), its line `format` (`host`, `url`,
+  `httpx`, `gnmap`, `secret`, `dir`, ...), the producing `module`, and
+  `exists` / `lines` / `bytes`. Missing files are listed with `exists: false`,
+  so consumers can tell "module didn't run" from "ran, found nothing".
+
+  ```bash
+  # e.g. read every live URL the run found, wherever it is stored
+  cd example.com
+  for a in live_urls_with_params live_urls_without_params; do
+    cat "$(jq -r --arg a "$a" '.artifacts[$a].path' export.json)"
+  done
   ```
 
 Because `run_summary` is checkpointed like any other module, a plain re-run

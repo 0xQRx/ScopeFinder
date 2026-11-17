@@ -123,6 +123,7 @@ declare -A FILES=(
     [TAKEOVER_RESULTS]="takeover_results.txt"
     [RUN_SUMMARY]="summary.json"
     [RUN_DIFF]="diff.json"
+    [RUN_EXPORT]="export.json"
     [RESOLVERS]="resolvers.txt"
     [RESOLVERS_RAW]="resolvers_raw.txt"
 )

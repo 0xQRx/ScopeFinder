@@ -9,6 +9,11 @@
 # a diff.json flags the NEW surface (new subdomains, newly live hosts, newly
 # open ports) relative to that baseline - high value for the
 # baseline-before-engagement workflow.
+#
+# It also writes export.json: a manifest of every raw result file the run
+# produced (path relative to the work dir, data format, producing module, line
+# and byte counts). summary.json carries counts; export.json tells a consumer
+# where the full data lives so it can ingest the actual items.
 
 MODULE_NAME="run_summary"
 MODULE_DESC="Emit machine-readable summary.json of the discovered surface and diff it against the previous run"
@@ -20,6 +25,131 @@ SUMMARY_SCHEMA_VERSION=1
 module_init() {
     mkdir -p "${DIRS[SUMMARIES]}"
     return 0
+}
+
+# Schema version for export.json (independent of the summary schema).
+EXPORT_SCHEMA_VERSION=1
+
+# Raw artifacts listed in export.json, one per line:
+#   name|DIRS key|file (FILES key, or a literal name prefixed with '=')|module|format|description
+# "format" tells a consumer how to parse each line:
+#   host          bare hostname
+#   url           absolute URL
+#   ip            IPv4/IPv6 address
+#   cidr          CIDR range
+#   email         email address
+#   param         parameter name
+#   redirect      "<source host> -> <final host>"
+#   ip_host       "<ip> <hostname|No domain>"
+#   httpx         httpx text: "<url> [status] [title] [tech,...]" (fields optional)
+#   gnmap         nmap grepable output
+#   nuclei        nuclei text result line
+#   secret        "[<type>] <value> (Source: <file>)"
+#   trufflehog    trufflehog multi-line text (findings open with "Found ... result")
+#   colon_pair    "<identity>:<secret>"
+#   text          free-form text, one item per line
+#   dir           directory of files (lines = number of files)
+_EXPORT_ARTIFACTS='
+subdomains|SUBDOMAINS|SUBDOMAINS|subdomain_enum|host|All discovered subdomains
+wildcard_subdomains|SUBDOMAINS|WILDCARD_SUBDOMAINS|subdomain_enum|host|Subdomains resolving under a wildcard
+live_subdomains|SUBDOMAINS|LIVE_SUBDOMAINS|httpx_subdomain_probe|host|Subdomains that answered HTTP(S)
+http_200_subdomains|SUBDOMAINS|SUBDOMAINS_200|httpx_subdomain_probe|host|Subdomains whose final response was 200
+redirected_subdomains|SUBDOMAINS|REDIRECTED_TO_SUBDOMAINS|httpx_subdomain_probe|redirect|Subdomains redirecting to another in-scope host
+httpx_hosts|HTTPX|HTTPX_OUTPUT|httpx_subdomain_probe|httpx|httpx probe of subdomains (status, title, tech)
+subdomain_takeover|SUBDOMAIN_TAKEOVER|TAKEOVER_RESULTS|subdomain_takeover|nuclei|Subdomain takeover candidates
+open_ports_gnmap|SCANS_SMAP|=open_ports.gnmap|smap_port_scan|gnmap|Port scan of subdomains
+web_servers|SCANS|WEB_SERVERS|smap_port_scan|ip_host|Hosts with 80/443 open
+ips_from_smap|SCANS|IPS_FROM_SMAP|smap_port_scan|ip|IPs seen by the subdomain port scan
+ips_from_sources|SCANS|IPS_FROM_SOURCES|ip_discovery|ip|IPs from open sources
+ips_from_ssl|SHODAN|IPS_FROM_SSL|shodan_search|ip|IPs presenting the domain in TLS certificates
+ips_from_org|SHODAN|IPS_FROM_ORG|shodan_search|ip|IPs belonging to the selected organization
+asn_ranges|ASN|ASN_RANGES|asn_discovery|cidr|IP ranges announced by the organization ASNs
+asn_open_ports_gnmap|ASN_SMAP|=open_ports.gnmap|asn_port_scan|gnmap|Port scan of ASN ranges
+asn_web_servers|ASN|ASN_WEBSERVERS|asn_port_scan|ip_host|ASN hosts with 80/443 open
+cloud_sni_domains|CLOUD|CLOUD_SNI_DOMAINS|cloud_recon|text|Cloud SNI dataset hits for the domain
+emails|CREDENTIALS|EMAILS|credential_intel|email|Email addresses
+leaked_email_passwd|CREDENTIALS|LEAKED_EMAIL_PASSWD|credential_intel|colon_pair|Leaked email:password pairs
+leaked_username_passwd|CREDENTIALS|LEAKED_USERNAME_PASSWD|credential_intel|colon_pair|Leaked username:password pairs
+urls_with_params|URLS_ARTIFACTS|URLS_WITH_PARAMS_UNIQ|extract_params|url|Collected URLs with parameters (deduplicated, unprobed)
+urls_without_params|URLS_ARTIFACTS|URLS_WITHOUT_PARAMS_UNIQ|extract_params|url|Collected URLs without parameters (deduplicated, unprobed)
+parameters|PARAMETERS|PARAMETERS|extract_params|param|Unique parameter names
+live_urls_with_params|URLS|LIVE_URLS_WITH_PARAMS|httpx_url_probe|url|Live URLs with parameters
+live_urls_without_params|URLS|LIVE_URLS_WITHOUT_PARAMS|httpx_url_probe|url|Live URLs without parameters
+httpx_urls_with_params|URLS_ARTIFACTS|HTTPX_URLS_WITH_PARAMS_OUTPUT|httpx_url_probe|httpx|httpx probe of URLs with parameters
+httpx_urls_without_params|URLS_ARTIFACTS|HTTPX_URLS_WITHOUT_PARAMS_OUTPUT|httpx_url_probe|httpx|httpx probe of URLs without parameters
+js_files|JS_ENDPOINTS|JS_ENDPOINTS|js_download|url|Live JavaScript file URLs
+js_chunk_urls|URLS_ARTIFACTS|JS_CHUNK_URLS|js_chunk_discovery|url|Lazy-loaded / webpack chunk URLs
+jsluice_urls|URLS_LINKFINDER|JSLUICE_URLS|linkfinder_analysis|text|URLs and paths extracted from JS by jsluice
+xnlinkfinder_js_urls|XNLINKFINDER|XNLINKFINDER_JS_OUTPUT|linkfinder_analysis|text|URLs and paths extracted from JS by xnLinkFinder
+xnlinkfinder_js_params|XNLINKFINDER|XNLINKFINDER_JS_PARAMS|linkfinder_analysis|param|Parameter names extracted from JS
+graphql_endpoints|GRAPHQL|GRAPHQL_ENDPOINTS|graphql_probe|url|Confirmed GraphQL endpoints
+graphql_sdl|GRAPHQL_SDL|=|graphql_probe|dir|Exported GraphQL SDL files
+api_docs_endpoints|API_DOCS|API_DOCS_ENDPOINTS|api_docs_probe|url|Confirmed API documentation endpoints
+api_docs_specs|API_DOCS_SPECS|=|api_docs_probe|dir|Downloaded OpenAPI/Swagger specs
+wordpress_sites|WORDPRESS|WORDPRESS_SITES|httpx_subdomain_probe|url|WordPress sites
+secrets_jshunter|SECRETS|JSHUNTER_ALL|secret_scan|secret|jshunter secret hits
+secrets_jsluice|SECRETS|JSLUICE_ALL|secret_scan|secret|jsluice secret hits
+secrets_trufflehog|SECRETS|TRUFFLEHOG_ALL|secret_scan|trufflehog|trufflehog results
+'
+
+# Write export.json to $1. Paths are relative to the work dir, so the manifest
+# stays valid if the whole work dir is moved or copied elsewhere.
+_summary_write_export() {
+    local out="$1" now_iso="$2" now_epoch="$3"
+    local work="${DIRS[WORK_DIR]}"
+    local artifacts_json="{}"
+    local name dkey fspec module fmt desc dir path rel exists lines bytes
+    while IFS='|' read -r name dkey fspec module fmt desc; do
+        [[ -n "$name" ]] || continue
+        dir="${DIRS[$dkey]:-}"
+        [[ -n "$dir" ]] || continue
+        if [[ "$fspec" == "=" ]]; then
+            path="$dir"
+        elif [[ "$fspec" == =* ]]; then
+            path="${dir}/${fspec#=}"
+        else
+            path="${dir}/${FILES[$fspec]:-}"
+        fi
+        rel="${path#"${work}"/}"
+        exists=false; lines=0; bytes=0
+        if [[ "$fmt" == "dir" ]]; then
+            if [[ -d "$path" ]]; then
+                exists=true
+                lines="$(find "$path" -type f 2>/dev/null | wc -l | tr -d ' ')"
+                bytes="$(find "$path" -type f -exec cat {} + 2>/dev/null | wc -c | tr -d ' ')"
+            fi
+        elif [[ -f "$path" ]]; then
+            exists=true
+            lines="$(_summary_count "$path")"
+            bytes="$(wc -c < "$path" 2>/dev/null | tr -d ' ')"
+        fi
+        artifacts_json="$(jq --arg name "$name" --arg path "$rel" --arg module "$module" \
+            --arg format "$fmt" --arg desc "$desc" --argjson exists "$exists" \
+            --argjson lines "${lines:-0}" --argjson bytes "${bytes:-0}" \
+            '. + {($name): {path: $path, format: $format, module: $module,
+                            description: $desc, exists: $exists,
+                            lines: $lines, bytes: $bytes}}' <<< "$artifacts_json")"
+    done <<< "$_EXPORT_ARTIFACTS"
+
+    jq -n \
+        --argjson schema "$EXPORT_SCHEMA_VERSION" \
+        --arg domain "$DOMAIN" \
+        --arg generated_at "$now_iso" \
+        --argjson generated_at_epoch "$now_epoch" \
+        --arg summary "${FILES[RUN_SUMMARY]}" \
+        --arg diff "${FILES[RUN_DIFF]}" \
+        --argjson artifacts "$artifacts_json" \
+        '{
+            schema_version: $schema,
+            tool: "ScopeFinder",
+            domain: $domain,
+            generated_at: $generated_at,
+            generated_at_epoch: $generated_at_epoch,
+            paths_relative_to: "work_dir",
+            summary: $summary,
+            diff: $diff,
+            artifacts: $artifacts
+        }' > "$out"
 }
 
 # Count non-empty lines in a file; 0 if the file is missing or empty.
@@ -345,6 +475,15 @@ module_run() {
 
     # --- Repoint the stable "latest" summary ---------------------------------
     cp -f "$summary_file" "$latest_file"
+
+    # --- Export manifest (where the full data lives) -------------------------
+    local export_file="${DIRS[WORK_DIR]}/${FILES[RUN_EXPORT]}"
+    if _summary_write_export "$export_file" "$now_iso" "$now_epoch" && [[ -s "$export_file" ]]; then
+        log_info "Export manifest:    $export_file"
+    else
+        log_warn "Failed to write export manifest"
+        rm -f "$export_file"
+    fi
 
     log_info "Summary written to: $latest_file"
     log_info "Timestamped copy:   $summary_file"
